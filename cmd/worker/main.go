@@ -29,6 +29,10 @@ func main() {
 			Fila:    "check_pop_status",
 			Handler: worker.HandlerCheckPopStatus,
 		},
+		{
+			Fila:    "run_cluster",
+			Handler: worker.HandlerRunCluster,
+		},
 	})
 
 	quit := make(chan os.Signal, 1)
