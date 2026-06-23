@@ -37,7 +37,7 @@ func main() {
 		{Expressao: "0 * * * * *", Nome: "cron_um", Fila: "cron_1"},
 		{Expressao: "*/30 * * * * *", Nome: "executar_cluster", Fila: "run_cluster"},
 		{Expressao: "*/30 * * * * *", Nome: "verificar_status_pop", Fila: "check_pop_status"},
-		{Expressao: "0 * * * * *", Nome: "sincronizar_conexoes", Fila: "sync_conexoes_radius_arquivo"},
+		{Expressao: "*/30 * * * * *", Nome: "sincronizar_conexoes", Fila: "sync_conexoes_radius_arquivo"},
 		{Expressao: "0 30 0 * * *", Nome: "reparar_radius", Fila: "repair_radius_acctstoptime"},
 		{Expressao: "0 30 0 * * *", Nome: "limpeza_logs", Fila: "limpeza_logs"},
 		{Expressao: "0 10 14 * * *", Nome: "listar_clientes_vencidos", Fila: "listar_clientes_vencidos"},
