@@ -81,8 +81,6 @@ func processarPop(tag string, db *sql.DB, pop dominio.Pop, chaveMestra []byte) e
 		return atualizarOffline(db, pop)
 	}
 
-	logger.Info(tag, "WS2 response: %s", string(body))
-
 	var resultado map[string]interface{}
 	if err := json.Unmarshal(body, &resultado); err != nil {
 		return atualizarOffline(db, pop)
