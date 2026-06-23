@@ -25,7 +25,7 @@ import (
 func ExecutarParaTodasInstancias(cfg *config.Config, rabbit *mensageria.RabbitMQ, fila string) {
 	logger.Inicio(fila, "Iniciando execucao")
 
-	instancias, err := banco.BuscarInstanciasAtivas(cfg.Banco)
+	instancias, err := banco.BuscarInstanciasAtivas(cfg.Banco, cfg)
 	if err != nil {
 		logger.Erro(fila, "Falha ao buscar instancias: %v", err)
 		return

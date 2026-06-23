@@ -4,8 +4,11 @@ import "os"
 
 // Config contem todas as configuracoes do sistema (banco, mensageria, etc.)
 type Config struct {
-	Banco    BancoConfig
-	RabbitMQ RabbitMQConfig
+	Banco               BancoConfig
+	RabbitMQ            RabbitMQConfig
+	CI3EncryptionKey    string
+	DBInstanciaHostDev  string
+	DBInstanciaPortaDev string
 }
 
 type BancoConfig struct {
@@ -40,6 +43,9 @@ func Carregar() *Config {
 			Usuario: obterEnv("RABBITMQ_USER", "guest"),
 			Senha:   obterEnv("RABBITMQ_PASS", "guest"),
 		},
+		CI3EncryptionKey:    obterEnv("CI3_ENCRYPTION_KEY", "sjlkjl32oiPOIjkl2"),
+		DBInstanciaHostDev:  obterEnv("DB_INSTANCIA_HOST_DEV", ""),
+		DBInstanciaPortaDev: obterEnv("DB_INSTANCIA_PORT_DEV", ""),
 	}
 }
 

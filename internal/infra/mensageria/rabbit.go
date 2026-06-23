@@ -140,6 +140,7 @@ func (r *RabbitMQ) PublicarInstancia(fila string, instancia dominio.Instancia) e
 		"gisp_id":    instancia.ID,
 		"gisp_token": instancia.Token,
 		"hostname":   instancia.EnvDBHost,
+		"port":       instancia.EnvDBPort,
 		"username":   instancia.EnvDBUser,
 		"password":   instancia.EnvDBPass,
 		"database":   instancia.EnvDBName,

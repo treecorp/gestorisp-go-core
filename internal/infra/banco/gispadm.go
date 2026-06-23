@@ -11,7 +11,7 @@ import (
 // BuscarInstanciasAtivas retorna todas as instancias GISP-FULL com status Ativo
 // Query original do PHP: SELECT id, token, env_dbname, env_dbuser, env_dbpass, env_dbhost
 // FROM instancias WHERE app='GISP-FULL' AND status='Ativo'
-func BuscarInstanciasAtivas(cfg config.BancoConfig) ([]dominio.Instancia, error) {
+func BuscarInstanciasAtivas(cfg config.BancoConfig, configGeral *config.Config) ([]dominio.Instancia, error) {
 	if err := Ping(cfg); err != nil {
 		return nil, err
 	}
@@ -30,11 +30,13 @@ func BuscarInstanciasAtivas(cfg config.BancoConfig) ([]dominio.Instancia, error)
 	var instancias []dominio.Instancia
 	for linhas.Next() {
 		var i dominio.Instancia
+		i.EnvDBPort = "3306"
 		if err := linhas.Scan(
 			&i.ID, &i.Token, &i.EnvDBName, &i.EnvDBUser, &i.EnvDBPass, &i.EnvDBHost,
 		); err != nil {
 			return nil, err
 		}
+		sobrescreverHostDev(configGeral, &i)
 		instancias = append(instancias, i)
 	}
 	if err := linhas.Err(); err != nil {
@@ -45,4 +47,16 @@ func BuscarInstanciasAtivas(cfg config.BancoConfig) ([]dominio.Instancia, error)
 		return nil, sql.ErrNoRows
 	}
 	return instancias, nil
+}
+
+// sobrescreverHostDev substitui o host e porta da instancia pelos valores de desenvolvimento
+// quando as variaveis DB_INSTANCIA_HOST_DEV e DB_INSTANCIA_PORT_DEV estiverem configuradas
+func sobrescreverHostDev(cfg *config.Config, i *dominio.Instancia) {
+	if cfg.DBInstanciaHostDev != "" {
+		logger.Info("gispadm", "Dev mode: substituindo host da instancia %d (%s -> %s)", i.ID, i.EnvDBHost, cfg.DBInstanciaHostDev)
+		i.EnvDBHost = cfg.DBInstanciaHostDev
+	}
+	if cfg.DBInstanciaPortaDev != "" {
+		i.EnvDBPort = cfg.DBInstanciaPortaDev
+	}
 }
