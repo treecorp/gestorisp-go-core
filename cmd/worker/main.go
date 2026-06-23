@@ -33,6 +33,10 @@ func main() {
 			Fila:    "run_cluster",
 			Handler: worker.HandlerRunCluster,
 		},
+		{
+			Fila:    "sync_conexoes_radius_arquivo",
+			Handler: worker.HandlerSyncConexoesRadiusArquivo,
+		},
 	})
 
 	quit := make(chan os.Signal, 1)
