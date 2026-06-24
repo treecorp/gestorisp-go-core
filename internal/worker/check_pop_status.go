@@ -81,7 +81,7 @@ func processarPop(tag string, db *sql.DB, pop dominio.Pop, chaveMestra []byte) e
 		return atualizarOffline(db, pop)
 	}
 
-	var resultado map[string]interface{}
+	var resultado []interface{}
 	if err := json.Unmarshal(body, &resultado); err != nil {
 		return atualizarOffline(db, pop)
 	}
