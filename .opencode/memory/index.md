@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron)
 
-**Ultima atualizacao:** 23/06/2026 (23:50)
+**Ultima atualizacao:** 24/06/2026 (00:15)
 
 ## Estatisticas
 
@@ -14,7 +14,8 @@
 | Convencoes | 4 |
 | Gotchas | 7 |
 | Padroes | 2 |
-| **Total** | **22** |
+| Specs | 2 |
+| **Total** | **24** |
 
 ## Indice
 
@@ -48,6 +49,28 @@
 ### Padroes
 - [001 - Tarefa cron config-driven](patterns/001-tarefa-cron-config-driven.md)
 - [002 - Retry com backoff exponencial](patterns/002-retry-backoff-exponencial.md)
+
+---
+## Progresso
+
+### Migrados (6/7)
+| Worker | Handler | Cron |
+|--------|---------|------|
+| `cron_1` | `cron_1.go` (5 sub-rotinas) | `0 */5 0,3-23 * * *` |
+| `run_cluster` | `run_cluster.go` | `*/30 * * * * *` |
+| `check_pop_status` | `check_pop_status.go` | `*/30 * * * * *` |
+| `sync_conexoes_radius_arquivo` | `sync_conexoes_radius_arquivo.go` | `*/30 * * * * *` |
+| `repair_radius_acctstoptime` | `repair_radius_acctstoptime.go` | `0 30 0 * * *` |
+| `limpeza_logs` | `limpeza_logs.go` | `0 30 0 * * *` |
+
+### Pendentes (1/7)
+| Worker | Observacao |
+|--------|------------|
+| `listar_clientes_vencidos` | Complexo: ~12 queries + RouterOS API por cliente |
+
+### Specs
+- [SDD-008 - repair_radius_acctstoptime](../specs/sdd-008-repair-radius-acctstoptime.md)
+- [SDD-009 - limpeza_logs](../specs/sdd-009-limpeza-logs.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.
