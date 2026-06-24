@@ -63,6 +63,14 @@ func (w *Worker) consumir(cons Consumidor) {
 			continue
 		}
 
+		err = canal.Qos(1, 0, false)
+		if err != nil {
+			logger.Erro(tag, "Falha ao setar prefetch 1: %v. Reintentando em 5s...", err)
+			w.fecharCanal(canal)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
 		mensagens, err := canal.Consume(cons.Fila, "", false, false, false, false, nil)
 		if err != nil {
 			logger.Erro(tag, "Falha ao consumir fila %s: %v. Reintentando em 5s...", cons.Fila, err)

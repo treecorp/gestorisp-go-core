@@ -12,9 +12,9 @@
 | Decisoes | 5 |
 | Bugs | 1 |
 | Convencoes | 4 |
-| Gotchas | 3 |
+| Gotchas | 4 |
 | Padroes | 2 |
-| **Total** | **15** |
+| **Total** | **16** |
 
 ## Indice
 
@@ -38,6 +38,7 @@
 - [001 - Porta RabbitMQ nao padrao 31837](gotchas/001-porta-rabbitmq-nao-padrao.md)
 - [002 - Type assertion em interface no retry](gotchas/002-type-assertion-retry.md)
 - [003 - WS2 retorna JSON array, nao objeto](gotchas/003-ws2-retorna-array-json.md)
+- [004 - Worker deve usar prefetch 1 (uma mensagem por vez)](gotchas/004-prefetch-1-worker.md)
 
 ### Padroes
 - [001 - Tarefa cron config-driven](patterns/001-tarefa-cron-config-driven.md)
