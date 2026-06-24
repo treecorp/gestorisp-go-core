@@ -146,7 +146,7 @@ func (w *Worker) consumirMensagem(cons ConsumidorMensagem) {
 		logger.Sucesso(tag, "Consumindo mensagens da fila %s...", cons.Fila)
 
 		for msg := range mensagens {
-			w.processarMensagemGenerica(tag, msg, cons.Handler)
+			w.processarMensagemGenerica(tag, msg, cons.Handler, cons.RetryInfinito)
 		}
 
 		logger.Aviso(tag, "Canal de mensagens fechado. Reintentando...")
@@ -155,16 +155,20 @@ func (w *Worker) consumirMensagem(cons ConsumidorMensagem) {
 	}
 }
 
-func (w *Worker) processarMensagemGenerica(tag string, msg amqp.Delivery, handler func([]byte, *mensageria.RabbitMQ) error) {
+func (w *Worker) processarMensagemGenerica(tag string, msg amqp.Delivery, handler func([]byte, *mensageria.RabbitMQ) error, retryInfinito bool) {
 	if err := handler(msg.Body, w.rabbit); err != nil {
+		if retryInfinito {
+			logger.Aviso(tag, "Erro: %v. Reenfileirando (retry infinito)...", err)
+			msg.Nack(false, true)
+			return
+		}
+
 		tentativa := extrairTentativa(msg.Body)
 
 		if tentativa < maxTentativas-1 {
-			// Requeue com tentativa incrementada
 			body := incrementarTentativa(msg.Body)
 			if body != nil {
 				logger.Aviso(tag, "Erro (tentativa %d/%d): %v. Reenfileirando...", tentativa+1, maxTentativas, err)
-				// Publica de volta com tentativa incrementada e faz ack da original
 				_ = w.rabbit.PublicarMensagem(tag, body)
 				msg.Ack(false)
 				return

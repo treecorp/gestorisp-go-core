@@ -62,10 +62,11 @@ func main() {
 			Handler: worker.HandlerProcessarPagamentoIugu,
 		},
 		{
-			Fila: "desconectar_contrato",
+			Fila:          "desconectar_contrato",
 			Handler: func(body []byte, _ *mensageria.RabbitMQ) error {
 				return worker.HandlerDesconectarContrato(body)
 			},
+			RetryInfinito: true,
 		},
 	})
 

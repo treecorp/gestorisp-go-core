@@ -1,5 +1,7 @@
 package dominio
 
+import "time"
+
 type MensagemDesconexaoContrato struct {
 	Instancia   Instancia `json:"instancia"`
 	ContratoID  int       `json:"contrato_id"`
@@ -9,4 +11,16 @@ type MensagemDesconexaoContrato struct {
 	PopPort     string    `json:"pop_port"`
 	PopUser     string    `json:"pop_user"`
 	PopPass     string    `json:"pop_pass"`
+	CriadoEm    string    `json:"criado_em"`
+}
+
+func (m MensagemDesconexaoContrato) Expirada() bool {
+	if m.CriadoEm == "" {
+		return false
+	}
+	criado, err := time.Parse(time.RFC3339, m.CriadoEm)
+	if err != nil {
+		return false
+	}
+	return time.Since(criado) > 24*time.Hour
 }

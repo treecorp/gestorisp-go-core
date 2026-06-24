@@ -23,6 +23,11 @@ func HandlerDesconectarContrato(body []byte) error {
 		return fmt.Errorf("erro ao decodificar JSON: %w", err)
 	}
 
+	if msg.Expirada() {
+		logger.Aviso(tagDesconexao, "Instancia %d: mensagem de desconexao expirou (>24h). Descartando.", msg.Instancia.ID)
+		return nil
+	}
+
 	logger.Info(tagDesconexao, "Instancia %d: desconectando contrato %d (%s) pppoe=%s POP=%s:%s",
 		msg.Instancia.ID, msg.ContratoID, msg.ClienteNome, msg.PPPoEUser, msg.PopIPv4, msg.PopPort)
 

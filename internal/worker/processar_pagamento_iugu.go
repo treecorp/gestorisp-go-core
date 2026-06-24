@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"gestor/internal/dominio"
 	"gestor/internal/infra/banco"
@@ -58,6 +59,7 @@ func HandlerProcessarPagamentoIugu(body []byte, rabbit *mensageria.RabbitMQ) err
 			PopPort:     resultado.PopPort,
 			PopUser:     resultado.PopUser,
 			PopPass:     resultado.PopPass,
+			CriadoEm:    time.Now().Format(time.RFC3339),
 		}
 
 		logger.Info(tagPagamento, "Instancia %d: publicando desconexao do contrato %d (%s) na fila desconectar_contrato",
