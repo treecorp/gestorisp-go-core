@@ -158,7 +158,8 @@ func (w *Worker) consumirMensagem(cons ConsumidorMensagem) {
 func (w *Worker) processarMensagemGenerica(tag string, msg amqp.Delivery, handler func([]byte, *mensageria.RabbitMQ) error, retryInfinito bool) {
 	if err := handler(msg.Body, w.rabbit); err != nil {
 		if retryInfinito {
-			logger.Aviso(tag, "Erro: %v. Reenfileirando (retry infinito)...", err)
+			logger.Aviso(tag, "Erro: %v. Reenfileirando (retry infinito, aguardando 10s)...", err)
+			time.Sleep(10 * time.Second)
 			msg.Nack(false, true)
 			return
 		}

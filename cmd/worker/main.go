@@ -58,8 +58,9 @@ func main() {
 
 	w.IniciarMensagem([]worker.ConsumidorMensagem{
 		{
-			Fila:    "processar_pagamento_iugu",
-			Handler: worker.HandlerProcessarPagamentoIugu,
+			Fila:          "processar_pagamento_iugu",
+			Handler:       worker.HandlerProcessarPagamentoIugu,
+			RetryInfinito: true,
 		},
 		{
 			Fila:          "desconectar_contrato",
