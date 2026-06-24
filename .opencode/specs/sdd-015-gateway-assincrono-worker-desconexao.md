@@ -1,6 +1,6 @@
 # SDD-015 — Gateway Assincrono + Worker Desconexao RouterOS
 
-**Status:** Proposta
+**Status:** Aprovado e Implementado
 **Autor:** Dev Backend
 **Prioridade:** Alta
 **Dependencias:** SDD-014, infra existente (`banco`, `mensageria`, `fuso`, `logger`, `routeros`)
