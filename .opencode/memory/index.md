@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron)
 
-**Ultima atualizacao:** 24/06/2026 (03:00)
+**Ultima atualizacao:** 24/06/2026 (04:30)
 
 ## Estatisticas
 
@@ -14,8 +14,8 @@
 | Convencoes | 4 |
 | Gotchas | 7 |
 | Padroes | 2 |
-| Specs | 5 |
-| **Total** | **28** |
+| Specs | 6 |
+| **Total** | **29** |
 
 ## Indice
 
@@ -54,6 +54,13 @@
 ---
 ## Progresso
 
+### Servicos
+| Servico | Entry Point | Descricao |
+|---------|-------------|-----------|
+| `gestor` | `cmd/gestor/main.go` | Cron agendador (7 tarefas) |
+| `worker` | `cmd/worker/main.go` | Consumidor RabbitMQ (7 handlers) |
+| `dashboard` | `cmd/dashboard/main.go` | Dashboard de logs ao vivo |
+
 ### Migrados (7/7)
 | Worker | Handler | Cron |
 |--------|---------|------|
@@ -66,7 +73,7 @@
 | `listar_clientes_vencidos` | `listar_clientes_vencidos.go` | `0 10 14 * * *` |
 
 ### Pendentes
-Nenhum — todos os 7 handlers migrados.
+Nenhum — todos os 7 handlers migrados. Dashboard de logs ao vivo criado.
 
 ### Specs
 - [SDD-008 - repair_radius_acctstoptime](../specs/sdd-008-repair-radius-acctstoptime.md)
@@ -74,6 +81,7 @@ Nenhum — todos os 7 handlers migrados.
 - [SDD-010 - listar_clientes_vencidos](../specs/sdd-010-listar-clientes-vencidos.md)
 - [SDD-011 - CI/CD GitHub Actions + Docker](../specs/sdd-011-ci-cd-github-actions-docker.md)
 - [SDD-012 - Ajuste agendamentos cron](../specs/sdd-012-ajuste-agendamentos-cron.md)
+- [SDD-013 - Dashboard de logs ao vivo](../specs/sdd-013-dashboard-logs-ao-vivo.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.

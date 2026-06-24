@@ -8,7 +8,8 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /gestor ./cmd/gestor && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /worker ./cmd/worker
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /worker ./cmd/worker && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /dashboard ./cmd/dashboard
 
 FROM alpine:3.19
 
@@ -20,5 +21,7 @@ ENV TZ=America/Sao_Paulo \
 WORKDIR /app
 COPY --from=build /gestor .
 COPY --from=build /worker .
+COPY --from=build /dashboard .
+COPY --from=build /app/web ./web
 
-CMD ["sh", "-c", "if [ \"$SERVICO\" = \"worker\" ]; then exec ./worker; else exec ./gestor; fi"]
+CMD ["sh", "-c", "case \"$SERVICO\" in worker) exec ./worker ;; dashboard) exec ./dashboard ;; *) exec ./gestor ;; esac"]

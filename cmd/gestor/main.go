@@ -10,6 +10,7 @@ import (
 	"gestor/internal/infra/banco"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
+	"gestor/internal/infra/observabilidade"
 )
 
 func main() {
@@ -19,19 +20,28 @@ func main() {
 	// --- 1. Carregar configuracoes ---
 	cfg := config.Carregar()
 
-	// --- 2. Conectar no banco GISPADM (loop infinito ate conseguir) ---
+	// --- 2. Configurar ingestao de logs para o dashboard ---
+	if cfg.DashboardIngestURL != "" {
+		observabilidade.ConfigurarIngestor(cfg.DashboardIngestURL)
+		observabilidade.DefinirServico("gestor")
+		ingestor := observabilidade.LogIngestor{}
+		logger.AdicionarHook(ingestor.WriteLog)
+		logger.Info("gestor", "Ingestor de logs configurado: %s", cfg.DashboardIngestURL)
+	}
+
+	// --- 3. Conectar no banco GISPADM (loop infinito ate conseguir) ---
 	logger.Info("gestor", "Aguardando conexao com banco GISPADM...")
 	banco.ConectarComRetry(cfg.Banco)
 	defer banco.Fechar()
 
-	// --- 3. Conectar no RabbitMQ (loop infinito ate conseguir) ---
+	// --- 4. Conectar no RabbitMQ (loop infinito ate conseguir) ---
 	logger.Info("gestor", "Aguardando conexao com RabbitMQ...")
 	rabbit := mensageria.ConectarComRetry(cfg.RabbitMQ)
 	defer rabbit.Fechar()
 
 	logger.Sucesso("gestor", "Conexoes estabelecidas. Iniciando agendador...")
 
-	// --- 4. Configurar agendador com as tarefas cron ---
+	// --- 5. Configurar agendador com as tarefas cron ---
 	agendador := cron.NovoAgendador(cfg, rabbit)
 	agendador.Iniciar([]cron.TarefaRegistro{
 		{Expressao: "0 */1 * * * *", Nome: "cron_um", Fila: "cron_1"},
@@ -43,7 +53,7 @@ func main() {
 		{Expressao: "0 10 14 * * *", Nome: "listar_clientes_vencidos", Fila: "listar_clientes_vencidos"},
 	})
 
-	// --- 5. Aguardar sinal de encerramento ---
+	// --- 6. Aguardar sinal de encerramento ---
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sinal := <-quit

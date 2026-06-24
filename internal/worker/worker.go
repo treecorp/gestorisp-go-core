@@ -13,6 +13,7 @@ import (
 	"gestor/internal/dominio"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
+	"gestor/internal/infra/observabilidade"
 )
 
 type Worker struct {
@@ -107,13 +108,19 @@ func (w *Worker) processarMensagem(tag string, msg amqp.Delivery, handler func(d
 
 	logger.Info(tag, "Processando instancia %d (%s)", instancia.ID, instancia.EnvDBName)
 
-	if err := handler(instancia); err != nil {
+	inicio := time.Now()
+	err = handler(instancia)
+	duracao := time.Since(inicio).Milliseconds()
+
+	if err != nil {
 		logger.Erro(tag, "Erro ao processar instancia %d: %v", instancia.ID, err)
+		observabilidade.LogCompleto("erro", tag, "Instancia %d: %v em %dms", instancia.ID, duracao, instancia.ID, err, duracao)
 		msg.Nack(false, false)
 		return
 	}
 
 	logger.Sucesso(tag, "Instancia %d processada com sucesso", instancia.ID)
+	observabilidade.LogCompleto("sucesso", tag, "Instancia %d processada em %dms", instancia.ID, duracao, instancia.ID, duracao)
 	msg.Ack(false)
 }
 

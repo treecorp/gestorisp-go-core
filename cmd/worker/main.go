@@ -8,6 +8,7 @@ import (
 	"gestor/internal/config"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
+	"gestor/internal/infra/observabilidade"
 	"gestor/internal/worker"
 )
 
@@ -16,6 +17,14 @@ func main() {
 	logger.Info("worker", "Inicializando...")
 
 	cfg := config.Carregar()
+
+	if cfg.DashboardIngestURL != "" {
+		observabilidade.ConfigurarIngestor(cfg.DashboardIngestURL)
+		observabilidade.DefinirServico("worker")
+		ingestor := observabilidade.LogIngestor{}
+		logger.AdicionarHook(ingestor.WriteLog)
+		logger.Info("worker", "Ingestor de logs configurado: %s", cfg.DashboardIngestURL)
+	}
 
 	logger.Info("worker", "Aguardando conexao com RabbitMQ...")
 	rabbit := mensageria.ConectarComRetry(cfg.RabbitMQ)

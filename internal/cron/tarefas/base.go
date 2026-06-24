@@ -8,6 +8,7 @@ import (
 	"gestor/internal/infra/banco"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
+	"gestor/internal/infra/observabilidade"
 )
 
 // ExecutarParaTodasInstancias le as instancias ativas do banco GISPADM
@@ -34,11 +35,17 @@ func ExecutarParaTodasInstancias(cfg *config.Config, rabbit *mensageria.RabbitMQ
 	logger.Sucesso(fila, "%d instancias ativas encontradas", len(instancias))
 
 	for _, instancia := range instancias {
-		if err := publicarComRetry(rabbit, fila, instancia); err != nil {
+		inicio := time.Now()
+		err := publicarComRetry(rabbit, fila, instancia)
+		duracao := time.Since(inicio).Milliseconds()
+
+		if err != nil {
 			logger.Erro(fila, "Falha ao publicar instancia %d apos tentativas: %v", instancia.GetID(), err)
+			observabilidade.LogCompleto("erro", fila, "Instancia %d: falha ao publicar em %dms", instancia.GetID(), duracao, instancia.GetID(), duracao)
 			continue
 		}
 		logger.Sucesso(fila, "Instancia %d publicada com sucesso", instancia.GetID())
+		observabilidade.LogCompleto("sucesso", fila, "Instancia %d publicada em %dms", instancia.GetID(), duracao, instancia.GetID(), duracao)
 	}
 
 	logger.Sucesso(fila, "Concluido para %d instancias", len(instancias))

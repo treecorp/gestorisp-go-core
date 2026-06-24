@@ -9,6 +9,8 @@ type Config struct {
 	CI3EncryptionKey    string
 	DBInstanciaHostDev  string
 	DBInstanciaPortaDev string
+	DashboardPort       string
+	DashboardIngestURL  string
 }
 
 type BancoConfig struct {
@@ -46,6 +48,8 @@ func Carregar() *Config {
 		CI3EncryptionKey:    obterEnv("CI3_ENCRYPTION_KEY", "sjlkjl32oiPOIjkl2"),
 		DBInstanciaHostDev:  obterEnv("DB_INSTANCIA_HOST_DEV", ""),
 		DBInstanciaPortaDev: obterEnv("DB_INSTANCIA_PORT_DEV", ""),
+		DashboardPort:       obterEnv("DASHBOARD_PORT", "8080"),
+		DashboardIngestURL:  obterEnv("DASHBOARD_INGEST_URL", "http://localhost:8080"),
 	}
 }
 
