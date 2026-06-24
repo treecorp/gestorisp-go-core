@@ -49,6 +49,10 @@ func main() {
 			Fila:    "limpeza_logs",
 			Handler: worker.HandlerLimpezaLogs,
 		},
+		{
+			Fila:    "listar_clientes_vencidos",
+			Handler: worker.HandlerListarClientesVencidos,
+		},
 	})
 
 	quit := make(chan os.Signal, 1)

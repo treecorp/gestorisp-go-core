@@ -3,19 +3,19 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron)
 
-**Ultima atualizacao:** 24/06/2026 (00:15)
+**Ultima atualizacao:** 24/06/2026 (01:45)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
-| Decisoes | 8 |
+| Decisoes | 9 |
 | Bugs | 1 |
 | Convencoes | 4 |
 | Gotchas | 7 |
 | Padroes | 2 |
-| Specs | 2 |
-| **Total** | **24** |
+| Specs | 3 |
+| **Total** | **26** |
 
 ## Indice
 
@@ -27,6 +27,7 @@
 - [005 - Adocao do Banco de Memoria do Projeto (BMP)](decisions/005-adocao-bmp-memoria.md)
 - [006 - Port do cron_1 com go-routeros + fuso centralizado](decisions/006-cron-1-routeros-fuso.md)
 - [007 - Abordagem mista para queries (SELECT batch JOIN + UPDATE individual)](decisions/007-batch-join-misto.md)
+- [008 - Precedencia de dias_bloqueio + permitir_bloqueio no bloqueio de inadimplentes](decisions/008-dias-bloqueio-permitir-bloqueio.md)
 
 ### Bugs
 - [001 - Nome do banco incorreto: gispadm vs gisp_adm](bugs/001-nome-banco-incorreto.md)
@@ -53,7 +54,7 @@
 ---
 ## Progresso
 
-### Migrados (6/7)
+### Migrados (7/7)
 | Worker | Handler | Cron |
 |--------|---------|------|
 | `cron_1` | `cron_1.go` (5 sub-rotinas) | `0 */5 0,3-23 * * *` |
@@ -62,15 +63,15 @@
 | `sync_conexoes_radius_arquivo` | `sync_conexoes_radius_arquivo.go` | `*/30 * * * * *` |
 | `repair_radius_acctstoptime` | `repair_radius_acctstoptime.go` | `0 30 0 * * *` |
 | `limpeza_logs` | `limpeza_logs.go` | `0 30 0 * * *` |
+| `listar_clientes_vencidos` | `listar_clientes_vencidos.go` | `0 10 14 * * *` |
 
-### Pendentes (1/7)
-| Worker | Observacao |
-|--------|------------|
-| `listar_clientes_vencidos` | Complexo: ~12 queries + RouterOS API por cliente |
+### Pendentes
+Nenhum — todos os 7 handlers migrados.
 
 ### Specs
 - [SDD-008 - repair_radius_acctstoptime](../specs/sdd-008-repair-radius-acctstoptime.md)
 - [SDD-009 - limpeza_logs](../specs/sdd-009-limpeza-logs.md)
+- [SDD-010 - listar_clientes_vencidos](../specs/sdd-010-listar-clientes-vencidos.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.
