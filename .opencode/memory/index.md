@@ -1,21 +1,21 @@
 
 # 🧠 Banco de Memoria do Projeto (BMP) — gestorisp-go-core
 
-**Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu)
+**Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 24/06/2026 (13:30)
+**Ultima atualizacao:** 24/06/2026 (16:00)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
-| Decisoes | 10 |
+| Decisoes | 11 |
 | Bugs | 1 |
 | Convencoes | 4 |
 | Gotchas | 7 |
 | Padroes | 2 |
-| Specs | 6 |
-| **Total** | **30** |
+| Specs | 7 |
+| **Total** | **32** |
 
 ## Indice
 
@@ -31,6 +31,7 @@
 
 ### Decisoes (Fase 2 - Gateway)
 - [009 - Gateway webhook Iugu como binario standalone HTTP](decisions/009-gateway-iugu-standalone-http.md)
+- [010 - Gateway assincrono via RabbitMQ + Worker Desconexao](decisions/010-gateway-assincrono-worker-desconexao.md)
 
 ### Bugs
 - [001 - Nome do banco incorreto: gispadm vs gisp_adm](bugs/001-nome-banco-incorreto.md)
@@ -69,12 +70,18 @@
 | `listar_clientes_vencidos` | `listar_clientes_vencidos.go` | `0 10 14 * * *` |
 
 ### Pendentes
-Proxima fase: Gateway de pagamentos (webhook Iugu) — implementado, aguardando deploy.
+Proxima fase: Testar gateway com webhook real do Iugu (nao retransmitido do PHP).
 
-### Fase 2 — Gateway Iugu (portado)
+### Fase 2 — Gateway Iugu (portado, agora assincrono)
 | Binario | Porta | Rota |
 |---------|-------|------|
 | `cmd/gateway` | 8082 | `POST /pagamentos/iugu/gatilho/{token}` |
+
+### Workers (novos)
+| Worker | Fila | Retry | Descricao |
+|--------|------|-------|-----------|
+| `processar_pagamento_iugu` | `processar_pagamento_iugu` | Max 5 | Processa baixa com TX MySQL |
+| `desconectar_contrato` | `desconectar_contrato` | Infinito | Desconecta cliente do RouterOS |
 
 ### Especificacoes
 - [SDD-008 - repair_radius_acctstoptime](../specs/sdd-008-repair-radius-acctstoptime.md)
@@ -83,6 +90,7 @@ Proxima fase: Gateway de pagamentos (webhook Iugu) — implementado, aguardando 
 - [SDD-011 - CI/CD GitHub Actions + Docker](../specs/sdd-011-ci-cd-github-actions-docker.md)
 - [SDD-012 - Ajuste agendamentos cron](../specs/sdd-012-ajuste-agendamentos-cron.md)
 - [SDD-014 - Gateway pagamentos Iugu](../specs/sdd-014-gateway-pagamentos-iugu.md)
+- [SDD-015 - Gateway assincrono + Worker Desconexao](../specs/sdd-015-gateway-assincrono-worker-desconexao.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.
