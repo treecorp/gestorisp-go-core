@@ -223,7 +223,10 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 
 		var s sessaoRadacct
 		err := db.QueryRow(`
-			SELECT acctuniqueid, acctstarttime, acctupdatetime, acctstoptime
+			SELECT acctuniqueid,
+			       DATE_FORMAT(acctstarttime, '%Y-%m-%d %H:%i:%s') AS acctstarttime,
+			       DATE_FORMAT(acctupdatetime, '%Y-%m-%d %H:%i:%s') AS acctupdatetime,
+			       DATE_FORMAT(acctstoptime, '%Y-%m-%d %H:%i:%s') AS acctstoptime
 			FROM radacct WHERE acctuniqueid = ?
 		`, c.AcctUniqueID.String).Scan(&s.AcctUniqueID, &s.AcctStartTime, &s.AcctUpdateTime, &s.AcctStopTime)
 		if err != nil {
@@ -325,7 +328,8 @@ func checkConexoesLocal(tag string, db *sql.DB, c contratoResumo) {
 func desbloquearUsuariosTravados(tag string, db *sql.DB) error {
 	limite := fuso.Agora().Add(-10 * time.Minute)
 	rows, err := db.Query(`
-		SELECT acctupdatetime, radacctid, acctuniqueid, contrato_pop_id, username
+		SELECT DATE_FORMAT(acctupdatetime, '%Y-%m-%d %H:%i:%s') AS acctupdatetime,
+		       radacctid, acctuniqueid, contrato_pop_id, username
 		FROM radacct
 		WHERE acctauthentic = 'RADIUS'
 		  AND acctstoptime IS NULL
