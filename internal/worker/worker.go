@@ -15,6 +15,8 @@ import (
 	"gestor/internal/infra/mensageria"
 )
 
+const maxTentativas = 5
+
 type Worker struct {
 	cfg    *config.Config
 	rabbit *mensageria.RabbitMQ
@@ -37,6 +39,20 @@ func (w *Worker) Iniciar(consumidores []Consumidor) {
 		go func(cons Consumidor) {
 			defer wg.Done()
 			w.consumir(cons)
+		}(c)
+	}
+
+	wg.Wait()
+}
+
+func (w *Worker) IniciarMensagem(consumidores []ConsumidorMensagem) {
+	var wg sync.WaitGroup
+
+	for _, c := range consumidores {
+		wg.Add(1)
+		go func(cons ConsumidorMensagem) {
+			defer wg.Done()
+			w.consumirMensagem(cons)
 		}(c)
 	}
 
@@ -89,6 +105,106 @@ func (w *Worker) consumir(cons Consumidor) {
 		w.fecharCanal(canal)
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func (w *Worker) consumirMensagem(cons ConsumidorMensagem) {
+	tag := cons.Fila
+	logger.Inicio(tag, "Worker iniciando consumo da fila %s", cons.Fila)
+
+	for {
+		canal, err := w.obterCanal()
+		if err != nil {
+			logger.Erro(tag, "Falha ao obter canal: %v. Reintentando em 5s...", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		_, err = canal.QueueDeclare(cons.Fila, true, false, false, false, nil)
+		if err != nil {
+			logger.Erro(tag, "Falha ao declarar fila %s: %v. Reintentando em 5s...", cons.Fila, err)
+			w.fecharCanal(canal)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		err = canal.Qos(1, 0, false)
+		if err != nil {
+			logger.Erro(tag, "Falha ao setar prefetch 1: %v. Reintentando em 5s...", err)
+			w.fecharCanal(canal)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		mensagens, err := canal.Consume(cons.Fila, "", false, false, false, false, nil)
+		if err != nil {
+			logger.Erro(tag, "Falha ao consumir fila %s: %v. Reintentando em 5s...", cons.Fila, err)
+			w.fecharCanal(canal)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		logger.Sucesso(tag, "Consumindo mensagens da fila %s...", cons.Fila)
+
+		for msg := range mensagens {
+			w.processarMensagemGenerica(tag, msg, cons.Handler)
+		}
+
+		logger.Aviso(tag, "Canal de mensagens fechado. Reintentando...")
+		w.fecharCanal(canal)
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func (w *Worker) processarMensagemGenerica(tag string, msg amqp.Delivery, handler func([]byte, *mensageria.RabbitMQ) error) {
+	if err := handler(msg.Body, w.rabbit); err != nil {
+		tentativa := extrairTentativa(msg.Body)
+
+		if tentativa < maxTentativas-1 {
+			// Requeue com tentativa incrementada
+			body := incrementarTentativa(msg.Body)
+			if body != nil {
+				logger.Aviso(tag, "Erro (tentativa %d/%d): %v. Reenfileirando...", tentativa+1, maxTentativas, err)
+				// Publica de volta com tentativa incrementada e faz ack da original
+				_ = w.rabbit.PublicarMensagem(tag, body)
+				msg.Ack(false)
+				return
+			}
+		}
+
+		logger.Erro(tag, "Erro apos %d tentativas: %v. Descartando mensagem.", maxTentativas, err)
+		msg.Nack(false, false)
+		return
+	}
+
+	msg.Ack(false)
+}
+
+func extrairTentativa(body []byte) int {
+	jsonBytes, err := base64.StdEncoding.DecodeString(string(body))
+	if err != nil {
+		return 0
+	}
+	var payload struct {
+		Tentativa int `json:"tentativa"`
+	}
+	if err := json.Unmarshal(jsonBytes, &payload); err != nil {
+		return 0
+	}
+	return payload.Tentativa
+}
+
+func incrementarTentativa(body []byte) interface{} {
+	jsonBytes, err := base64.StdEncoding.DecodeString(string(body))
+	if err != nil {
+		return nil
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &payload); err != nil {
+		return nil
+	}
+	tentativa, _ := payload["tentativa"].(float64)
+	payload["tentativa"] = int(tentativa) + 1
+	return payload
 }
 
 func (w *Worker) fecharCanal(canal *amqp.Channel) {

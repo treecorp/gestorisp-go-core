@@ -1,28 +1,17 @@
 package gateway
 
 import (
-	"database/sql"
-	"encoding/json"
 	"net/http"
 	"strings"
 
 	"gestor/internal/dominio"
-	"gestor/internal/infra/banco"
-	"gestor/internal/infra/fuso"
 	"gestor/internal/infra/logger"
+	"gestor/internal/infra/mensageria"
 )
-
-var codigosOrigem = map[string]string{
-	"iugu_pix":            "5",
-	"iugu_pix_test":       "5",
-	"iugu_credit_card":    "4",
-	"iugu_bank_slip":      "7",
-	"iugu_bank_slip_test": "7",
-}
 
 const tag = "gateway"
 
-func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Instancia) {
+func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Instancia, rabbit *mensageria.RabbitMQ) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Metodo nao permitido", http.StatusMethodNotAllowed)
 		return
@@ -59,94 +48,32 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Ins
 
 	iuguID := data["id"]
 	status := data["status"]
-	externalRef := data["external_reference"]
 	payerName := data["payer_name"]
+	logger.Info(tag, "Webhook: instancia=%d event=%s iugu_fatura=%s status=%s pagador=%s",
+		instancia.ID, event, iuguID, status, payerName)
 
-	logger.Info(tag, "Webhook: instancia=%d event=%s iugu_fatura=%s status=%s ref=%s pagador=%s",
-		instancia.ID, event, iuguID, status, truncate(externalRef, 20), payerName)
-
-	db, err := banco.ConectarInstancia(
-		instancia.EnvDBHost, instancia.EnvDBPort,
-		instancia.EnvDBUser, instancia.EnvDBPass, instancia.EnvDBName,
-	)
-	if err != nil {
-		logger.Erro(tag, "Instancia %d: erro ao conectar banco: %v", instancia.ID, err)
+	if rabbit == nil {
+		logger.Erro(tag, "Instancia %d: RabbitMQ nao disponivel", instancia.ID)
 		http.Error(w, "Erro interno", http.StatusInternalServerError)
 		return
 	}
-	defer banco.FecharConexaoInstancia(db, tag)
 
-	switch event {
-	case "invoice.status_changed":
-		handleStatusChanged(w, db, data, instancia)
-	default:
-		logger.Info(tag, "Instancia %d: evento %s ignorado (iugu_fatura=%s)", instancia.ID, event, iuguID)
-		w.WriteHeader(http.StatusOK)
+	msg := dominio.MensagemPagamentoIugu{
+		Instancia: instancia,
+		Event:     event,
+		Data:      data,
+		Tentativa: 0,
 	}
-}
 
-func handleStatusChanged(w http.ResponseWriter, db *sql.DB, data map[string]string, instancia dominio.Instancia) {
-	id := data["id"]
-	status := data["status"]
-	externalRef := data["external_reference"]
-
-	if id == "" {
-		logger.Aviso(tag, "Instancia %d: data[id] vazio no webhook", instancia.ID)
-		w.WriteHeader(http.StatusOK)
+	if err := rabbit.PublicarMensagem("processar_pagamento_iugu", msg); err != nil {
+		logger.Erro(tag, "Instancia %d: erro ao publicar na fila: %v", instancia.ID, err)
+		http.Error(w, "Erro interno", http.StatusInternalServerError)
 		return
 	}
 
-	dadosJSON := ""
-	if j, ok := data["dados_json"]; ok {
-		dadosJSON = j
-	} else {
-		jsonBytes, err := json.Marshal(data)
-		if err != nil {
-			logger.Aviso(tag, "Instancia %d: erro ao gerar dados_json: %v", instancia.ID, err)
-			dadosJSON = "{}"
-		} else {
-			dadosJSON = string(jsonBytes)
-		}
-	}
-
-	_, err := db.Exec(`INSERT INTO gisp_iugu_gatilhos 
-		(id, account_id, external_reference, source, order_id, status, event, dados_json, datetime_received)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id,
-		data["account_id"],
-		externalRef,
-		data["source"],
-		data["order_id"],
-		status,
-		"invoice.status_changed",
-		dadosJSON,
-		fuso.Agora().Format("2006-01-02 15:04:05"),
-	)
-	if err != nil {
-		logger.Aviso(tag, "Instancia %d: erro ao inserir gatilho %s: %v (ja existe?)", instancia.ID, id, err)
-	}
-
-	switch status {
-	case "paid":
-		logger.Info(tag, "Instancia %d: processando paid iugu_fatura=%s ref=%s", instancia.ID, id, truncate(externalRef, 20))
-		processarPagamento(w, db, data, id, instancia, "paid")
-
-	case "partially_paid":
-		logger.Info(tag, "Instancia %d: processando partially_paid iugu_fatura=%s ref=%s", instancia.ID, id, truncate(externalRef, 20))
-		processarPagamento(w, db, data, id, instancia, "partially_paid")
-
-	case "externally_paid":
-		logger.Info(tag, "Instancia %d: processando externally_paid iugu_fatura=%s ref=%s", instancia.ID, id, truncate(externalRef, 20))
-		processarPagamentoExternal(w, db, data, id, instancia)
-
-	case "canceled":
-		logger.Info(tag, "Instancia %d: fatura %s cancelada, ignorando", instancia.ID, id)
-		w.WriteHeader(http.StatusOK)
-
-	default:
-		logger.Info(tag, "Instancia %d: status %s ignorado para fatura %s", instancia.ID, status, id)
-		w.WriteHeader(http.StatusOK)
-	}
+	logger.Sucesso(tag, "Instancia %d: webhook publicado na fila processar_pagamento_iugu (fatura=%s)", instancia.ID, iuguID)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("200"))
 }
 
 func truncate(s string, max int) string {
@@ -154,27 +81,4 @@ func truncate(s string, max int) string {
 		return s[:max] + "..."
 	}
 	return s
-}
-
-func gerarProtocolo(min, max int) int {
-	return min + (idCounter() % (max - min + 1))
-}
-
-var counter int
-
-func idCounter() int {
-	counter++
-	return counter
-}
-
-func origemPagamento(metodo string) string {
-	if cod, ok := codigosOrigem[metodo]; ok {
-		return cod
-	}
-	return "7"
-}
-
-func limparNumero(valor string) string {
-	r := strings.NewReplacer(".", "", ",", "", "R$", "", " ", "")
-	return r.Replace(valor)
 }

@@ -1,4 +1,4 @@
-package gateway
+package pagamento
 
 import (
 	"encoding/json"

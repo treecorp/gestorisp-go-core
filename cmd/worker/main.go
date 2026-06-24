@@ -24,7 +24,8 @@ func main() {
 	logger.Sucesso("worker", "Conectado ao RabbitMQ. Iniciando consumidores...")
 
 	w := worker.NovoWorker(cfg, rabbit)
-	w.Iniciar([]worker.Consumidor{
+
+	go w.Iniciar([]worker.Consumidor{
 		{
 			Fila:    "check_pop_status",
 			Handler: worker.HandlerCheckPopStatus,
@@ -52,6 +53,19 @@ func main() {
 		{
 			Fila:    "listar_clientes_vencidos",
 			Handler: worker.HandlerListarClientesVencidos,
+		},
+	})
+
+	w.IniciarMensagem([]worker.ConsumidorMensagem{
+		{
+			Fila:    "processar_pagamento_iugu",
+			Handler: worker.HandlerProcessarPagamentoIugu,
+		},
+		{
+			Fila: "desconectar_contrato",
+			Handler: func(body []byte, _ *mensageria.RabbitMQ) error {
+				return worker.HandlerDesconectarContrato(body)
+			},
 		},
 	})
 

@@ -176,3 +176,39 @@ func (r *RabbitMQ) PublicarInstancia(fila string, instancia dominio.Instancia) e
 
 	return nil
 }
+
+// PublicarMensagem serializa qualquer payload como JSON -> Base64 e envia para a fila.
+// A fila e declarada como duravel e as mensagens com entrega persistente,
+// garantindo que sobrevivam a restart do RabbitMQ.
+func (r *RabbitMQ) PublicarMensagem(fila string, payload interface{}) error {
+	jsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("erro ao serializar JSON: %w", err)
+	}
+
+	msg := base64.StdEncoding.EncodeToString(jsonBytes)
+
+	r.mu.Lock()
+	canal := r.canal
+	r.mu.Unlock()
+
+	if canal == nil {
+		return fmt.Errorf("canal RabbitMQ nao disponivel")
+	}
+
+	_, err = canal.QueueDeclare(fila, true, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("erro ao declarar fila %s (duravel): %w", fila, err)
+	}
+
+	err = canal.Publish("", fila, false, false, amqp.Publishing{
+		ContentType:  "text/plain",
+		Body:         []byte(msg),
+		DeliveryMode: amqp.Persistent,
+	})
+	if err != nil {
+		return fmt.Errorf("erro ao publicar na fila %s: %w", fila, err)
+	}
+
+	return nil
+}

@@ -10,16 +10,19 @@ import (
 	"gestor/internal/config"
 	"gestor/internal/infra/banco"
 	"gestor/internal/infra/logger"
+	"gestor/internal/infra/mensageria"
 )
 
 type Servidor struct {
 	cfg     *config.Config
 	servico *http.Server
+	rabbit  *mensageria.RabbitMQ
 }
 
-func NovoServidor(cfg *config.Config) *Servidor {
+func NovoServidor(cfg *config.Config, rabbit *mensageria.RabbitMQ) *Servidor {
 	return &Servidor{
-		cfg: cfg,
+		cfg:    cfg,
+		rabbit: rabbit,
 	}
 }
 
@@ -63,7 +66,7 @@ func (s *Servidor) handleGatilho(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	HandleWebhook(w, r, instancia)
+	HandleWebhook(w, r, instancia, s.rabbit)
 }
 
 func PingHandler(w http.ResponseWriter, r *http.Request) {

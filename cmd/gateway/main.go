@@ -10,6 +10,7 @@ import (
 	"gestor/internal/config"
 	"gestor/internal/gateway"
 	"gestor/internal/infra/logger"
+	"gestor/internal/infra/mensageria"
 )
 
 func main() {
@@ -25,7 +26,12 @@ func main() {
 	}
 	logger.Sucesso("gateway", "Conectado ao banco GISPADM")
 
-	servidor := gateway.NovoServidor(cfg)
+	logger.Info("gateway", "Conectando ao RabbitMQ...")
+	rabbit := mensageria.ConectarComRetry(cfg.RabbitMQ)
+	defer rabbit.Fechar()
+	logger.Sucesso("gateway", "Conectado ao RabbitMQ")
+
+	servidor := gateway.NovoServidor(cfg, rabbit)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
