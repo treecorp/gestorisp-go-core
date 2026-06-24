@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron)
 
-**Ultima atualizacao:** 24/06/2026 (01:45)
+**Ultima atualizacao:** 24/06/2026 (02:15)
 
 ## Estatisticas
 
@@ -14,8 +14,8 @@
 | Convencoes | 4 |
 | Gotchas | 7 |
 | Padroes | 2 |
-| Specs | 3 |
-| **Total** | **26** |
+| Specs | 4 |
+| **Total** | **27** |
 
 ## Indice
 
@@ -72,6 +72,7 @@ Nenhum — todos os 7 handlers migrados.
 - [SDD-008 - repair_radius_acctstoptime](../specs/sdd-008-repair-radius-acctstoptime.md)
 - [SDD-009 - limpeza_logs](../specs/sdd-009-limpeza-logs.md)
 - [SDD-010 - listar_clientes_vencidos](../specs/sdd-010-listar-clientes-vencidos.md)
+- [SDD-011 - CI/CD GitHub Actions + Docker](../specs/sdd-011-ci-cd-github-actions-docker.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.
