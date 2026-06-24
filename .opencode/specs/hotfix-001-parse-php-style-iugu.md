@@ -124,7 +124,7 @@ go build ./cmd/gateway
 
 Teste manual:
 ```bash
-curl -X POST http://localhost:8082/pagamentos/iugu/gatilho/TOKEN \
+ curl -X POST http://localhost:8082/pagamentos/iugu/gatilho/TOKEN \
   -d "event=invoice.status_changed" \
   -d "data[id]=F123" \
   -d "data[status]=paid" \
@@ -133,3 +133,30 @@ curl -X POST http://localhost:8082/pagamentos/iugu/gatilho/TOKEN \
 ```
 
 Esperado: log com `Webhook: event=invoice.status_changed status=paid ref=abc123 pagador=Teste` + processamento normal (ou erro contextualizado se fatura nao existir).
+
+---
+
+## 7. Correcao adicional (v2) — dados_json valido
+
+### 7.1 Problema
+A coluna `gisp_iugu_gatilhos.dados_json` e do tipo **JSON** no MySQL.
+O codigo original montava manualmente no formato `{chave=valor}` — **JSON invalido**:
+
+```go
+// ERRADO: produz {id=899E76B4, status=paid}
+dadosJSON = "{" + strings.Join(parts, ", ") + "}"
+```
+
+Isso causava `Error 3140 (22032): Invalid JSON text` no INSERT, impedindo
+que **novos webhooks** (nunca processados antes) fossem registrados e processados.
+
+### 7.2 Correcao
+Usar `json.Marshal` para gerar JSON valido:
+
+```go
+jsonBytes, err := json.Marshal(data)
+dadosJSON = string(jsonBytes) // produz {"id":"899E76B4","status":"paid"}
+```
+
+### 7.3 Arquivo
+`internal/gateway/iugu_webhook.go` — funcao `handleStatusChanged`, linhas 98-107.

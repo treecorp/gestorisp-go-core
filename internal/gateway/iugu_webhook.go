@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -99,11 +100,13 @@ func handleStatusChanged(w http.ResponseWriter, db *sql.DB, data map[string]stri
 	if j, ok := data["dados_json"]; ok {
 		dadosJSON = j
 	} else {
-		parts := make([]string, 0, len(data))
-		for k, v := range data {
-			parts = append(parts, k+"="+v)
+		jsonBytes, err := json.Marshal(data)
+		if err != nil {
+			logger.Aviso(tag, "Instancia %d: erro ao gerar dados_json: %v", instancia.ID, err)
+			dadosJSON = "{}"
+		} else {
+			dadosJSON = string(jsonBytes)
 		}
-		dadosJSON = "{" + strings.Join(parts, ", ") + "}"
 	}
 
 	_, err := db.Exec(`INSERT INTO gisp_iugu_gatilhos 
