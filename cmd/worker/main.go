@@ -37,6 +37,10 @@ func main() {
 			Fila:    "sync_conexoes_radius_arquivo",
 			Handler: worker.HandlerSyncConexoesRadiusArquivo,
 		},
+		{
+			Fila:    "cron_1",
+			Handler: worker.HandlerCron1,
+		},
 	})
 
 	quit := make(chan os.Signal, 1)

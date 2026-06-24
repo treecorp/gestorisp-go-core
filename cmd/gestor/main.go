@@ -34,7 +34,7 @@ func main() {
 	// --- 4. Configurar agendador com as tarefas cron ---
 	agendador := cron.NovoAgendador(cfg, rabbit)
 	agendador.Iniciar([]cron.TarefaRegistro{
-		{Expressao: "0 * * * * *", Nome: "cron_um", Fila: "cron_1"},
+		{Expressao: "0 */5 0,3-23 * * *", Nome: "cron_um", Fila: "cron_1"},
 		{Expressao: "*/30 * * * * *", Nome: "executar_cluster", Fila: "run_cluster"},
 		{Expressao: "*/30 * * * * *", Nome: "verificar_status_pop", Fila: "check_pop_status"},
 		{Expressao: "*/30 * * * * *", Nome: "sincronizar_conexoes", Fila: "sync_conexoes_radius_arquivo"},

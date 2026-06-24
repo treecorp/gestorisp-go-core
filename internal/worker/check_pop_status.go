@@ -11,6 +11,7 @@ import (
 	"gestor/internal/dominio"
 	"gestor/internal/infra/banco"
 	"gestor/internal/infra/cripto"
+	"gestor/internal/infra/fuso"
 	"gestor/internal/infra/logger"
 )
 
@@ -109,7 +110,7 @@ func atualizarOffline(db *sql.DB, pop dominio.Pop) error {
 		return banco.AtualizarStatusTimeout(db, pop.ID, dados, nil)
 	case 2:
 		dados := 3
-		agora := time.Now().Format("2006-01-02 15:04:05")
+		agora := fuso.Agora().Format("2006-01-02 15:04:05")
 		return banco.AtualizarStatusTimeout(db, pop.ID, dados, &agora)
 	default:
 		dados := pop.StatusTimeout + 1
