@@ -38,19 +38,26 @@ type contratoResumo struct {
 	WSUpdateSequencia int
 }
 
-type sessaoRadacct struct {
-	AcctUniqueID  sql.NullString
-	AcctStartTime sql.NullString
-	AcctUpdateTime sql.NullString
-	AcctStopTime  sql.NullString
-}
-
 type sessaoTravada struct {
 	AcctUpdateTime string
 	RadAcctID      int
 	AcctUniqueID   string
-	ContratoPopID  int
+	ContratoPopID  sql.NullInt64
 	Username       string
+}
+
+type contratoComSessao struct {
+	ID                int
+	Token             string
+	Status            string
+	Conexao           string
+	AuthType          sql.NullString
+	AcctUniqueID      sql.NullString
+	WSUpdateSequencia int
+	RadAcctUniqueID   sql.NullString
+	RadAcctStartTime  sql.NullString
+	RadAcctUpdateTime sql.NullString
+	RadAcctStopTime   sql.NullString
 }
 
 type popInfo struct {
@@ -199,20 +206,29 @@ func adicionarLogDesconexao(tag string, db *sql.DB, contratoID int, contratoToke
 
 func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 	rows, err := db.Query(`
-		SELECT id, token, status, conexao, auth_type, acctuniqueid
-		FROM sgp_clientes_contratos
-		WHERE acctuniqueid IS NOT NULL AND (status = 'Ativo' OR status = 'Bloqueado')
-		ORDER BY id ASC
+		SELECT c.id, c.token, c.status, c.conexao, c.auth_type,
+		       c.acctuniqueid, COALESCE(c.ws_update_sequencia, 0),
+		       r.acctuniqueid,
+		       DATE_FORMAT(r.acctstarttime, '%Y-%m-%d %H:%i:%s') AS acctstarttime,
+		       DATE_FORMAT(r.acctupdatetime, '%Y-%m-%d %H:%i:%s') AS acctupdatetime,
+		       DATE_FORMAT(r.acctstoptime, '%Y-%m-%d %H:%i:%s') AS acctstoptime
+		FROM sgp_clientes_contratos c
+		LEFT JOIN radacct r ON r.acctuniqueid = c.acctuniqueid
+		WHERE c.acctuniqueid IS NOT NULL
+		  AND (c.status = 'Ativo' OR c.status = 'Bloqueado')
+		ORDER BY c.id ASC
 	`)
 	if err != nil {
-		return fmt.Errorf("erro ao buscar contratos: %w", err)
+		return fmt.Errorf("erro ao buscar contratos com sessao: %w", err)
 	}
 	defer rows.Close()
 
-	var contratos []contratoResumo
+	var contratos []contratoComSessao
 	for rows.Next() {
-		var c contratoResumo
-		if err := rows.Scan(&c.ID, &c.Token, &c.Status, &c.Conexao, &c.AuthType, &c.AcctUniqueID); err != nil {
+		var c contratoComSessao
+		if err := rows.Scan(&c.ID, &c.Token, &c.Status, &c.Conexao, &c.AuthType,
+			&c.AcctUniqueID, &c.WSUpdateSequencia,
+			&c.RadAcctUniqueID, &c.RadAcctStartTime, &c.RadAcctUpdateTime, &c.RadAcctStopTime); err != nil {
 			return fmt.Errorf("erro ao scanear contrato: %w", err)
 		}
 		contratos = append(contratos, c)
@@ -228,26 +244,17 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 
 	for _, c := range contratos {
 		if !c.AuthType.Valid || c.AuthType.String == "Local" {
-			checkConexoesLocal(tag, db, c)
+			checkConexoesLocal(tag, db, contratoResumo{
+				ID: c.ID, Token: c.Token, Status: c.Status,
+				Conexao: c.Conexao, AuthType: c.AuthType, AcctUniqueID: c.AcctUniqueID,
+			})
 		}
 
-		var s sessaoRadacct
-		err := db.QueryRow(`
-			SELECT acctuniqueid,
-			       DATE_FORMAT(acctstarttime, '%Y-%m-%d %H:%i:%s') AS acctstarttime,
-			       DATE_FORMAT(acctupdatetime, '%Y-%m-%d %H:%i:%s') AS acctupdatetime,
-			       DATE_FORMAT(acctstoptime, '%Y-%m-%d %H:%i:%s') AS acctstoptime
-			FROM radacct WHERE acctuniqueid = ?
-		`, c.AcctUniqueID.String).Scan(&s.AcctUniqueID, &s.AcctStartTime, &s.AcctUpdateTime, &s.AcctStopTime)
-		if err != nil {
-			continue
-		}
-
-		if (c.Status == "Ativo" || c.Status == "Bloqueado") && s.AcctUniqueID.Valid && s.AcctUniqueID.String == c.AcctUniqueID.String {
-			if !s.AcctStopTime.Valid {
+		if (c.Status == "Ativo" || c.Status == "Bloqueado") && c.RadAcctUniqueID.Valid && c.RadAcctUniqueID.String == c.AcctUniqueID.String {
+			if !c.RadAcctStopTime.Valid {
 				agora := fuso.Agora()
 				if c.Conexao == "Offline" {
-					logger.Info(tag, "contrato %d: Offline->Online (sessao ativa desde %s)", c.ID, s.AcctStartTime.String)
+					logger.Info(tag, "contrato %d: Offline->Online (sessao ativa desde %s)", c.ID, c.RadAcctStartTime.String)
 					_, err = db.Exec(`
 						UPDATE sgp_clientes_contratos
 						SET conexao = 'Online', auth_type = 'Radius',
@@ -255,7 +262,7 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 						    data_ultima_conexao_atividade = ?,
 						    hora_ultima_conexao_atividade = ?
 						WHERE id = ?
-					`, s.AcctStartTime.String, extrairData(s.AcctStartTime.String), extrairHora(s.AcctStartTime.String), c.ID)
+					`, c.RadAcctStartTime.String, extrairData(c.RadAcctStartTime.String), extrairHora(c.RadAcctStartTime.String), c.ID)
 					online++
 				} else {
 					_, err = db.Exec(`
@@ -264,11 +271,11 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 						    data_ultima_conexao_atividade = ?,
 						    hora_ultima_conexao_atividade = ?
 						WHERE id = ?
-					`, s.AcctUpdateTime.String, extrairData(s.AcctUpdateTime.String), extrairHora(s.AcctUpdateTime.String), c.ID)
+					`, c.RadAcctUpdateTime.String, extrairData(c.RadAcctUpdateTime.String), extrairHora(c.RadAcctUpdateTime.String), c.ID)
 				}
 				_ = agora
 			} else {
-				logger.Info(tag, "contrato %d: Online->Offline (sessao encerrada em %s)", c.ID, s.AcctStopTime.String)
+				logger.Info(tag, "contrato %d: Online->Offline (sessao encerrada em %s)", c.ID, c.RadAcctStopTime.String)
 				_, err = db.Exec(`
 					UPDATE sgp_clientes_contratos
 					SET conexao = 'Offline', auth_type = 'Radius',
@@ -277,7 +284,7 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 					    hora_ultima_conexao_atividade = ?,
 					    acctuniqueid = NULL
 					WHERE id = ?
-				`, s.AcctStopTime.String, extrairData(s.AcctStopTime.String), extrairHora(s.AcctStopTime.String), c.ID)
+				`, c.RadAcctStopTime.String, extrairData(c.RadAcctStopTime.String), extrairHora(c.RadAcctStopTime.String), c.ID)
 				offline++
 			}
 			if err != nil {
@@ -377,9 +384,14 @@ func desbloquearUsuariosTravados(tag string, db *sql.DB) error {
 	puladas := 0
 
 	for _, s := range sessoes {
-		pop, ok := pops[s.ContratoPopID]
+		if !s.ContratoPopID.Valid {
+			logger.Info(tag, "sessao %s: sem POP vinculado, preservando", s.AcctUniqueID)
+			puladas++
+			continue
+		}
+		pop, ok := pops[int(s.ContratoPopID.Int64)]
 		if !ok || pop.Status != "OPERACIONAL" {
-			logger.Info(tag, "sessao %s: POP %d nao operacional, preservando", s.AcctUniqueID, s.ContratoPopID)
+			logger.Info(tag, "sessao %s: POP %d nao operacional, preservando", s.AcctUniqueID, s.ContratoPopID.Int64)
 			puladas++
 			continue
 		}
@@ -446,20 +458,39 @@ func carregarPops(db *sql.DB) map[int]popInfo {
 
 func repararOfflineParaOnline(tag string, db *sql.DB) error {
 	rows, err := db.Query(`
-		SELECT id, token, status, conexao, COALESCE(auth_type, ''), acctuniqueid, COALESCE(ws_update_sequencia, 0)
-		FROM sgp_clientes_contratos
-		WHERE conexao = 'Offline' AND (status = 'Ativo' OR status = 'Bloqueado')
-		ORDER BY id ASC
+		SELECT c.id, c.token, c.status, c.conexao, COALESCE(c.auth_type, ''),
+		       COALESCE(c.ws_update_sequencia, 0),
+		       r.acctuniqueid
+		FROM sgp_clientes_contratos c
+		INNER JOIN radacct r ON r.contrato_id = c.id AND r.acctstoptime IS NULL
+		WHERE c.conexao = 'Offline' AND (c.status = 'Ativo' OR c.status = 'Bloqueado')
+		ORDER BY c.id ASC
 	`)
 	if err != nil {
 		return fmt.Errorf("erro ao buscar contratos offline: %w", err)
 	}
 	defer rows.Close()
 
-	var contratos []contratoResumo
+	var contratos []struct {
+		ID                int
+		Token             string
+		Status            string
+		Conexao           string
+		AuthType          string
+		WSUpdateSequencia int
+		RadAcctUniqueID   string
+	}
 	for rows.Next() {
-		var c contratoResumo
-		if err := rows.Scan(&c.ID, &c.Token, &c.Status, &c.Conexao, &c.AuthType, &c.AcctUniqueID, &c.WSUpdateSequencia); err != nil {
+		var c struct {
+			ID                int
+			Token             string
+			Status            string
+			Conexao           string
+			AuthType          string
+			WSUpdateSequencia int
+			RadAcctUniqueID   string
+		}
+		if err := rows.Scan(&c.ID, &c.Token, &c.Status, &c.Conexao, &c.AuthType, &c.WSUpdateSequencia, &c.RadAcctUniqueID); err != nil {
 			return fmt.Errorf("erro ao scanear contrato: %w", err)
 		}
 		contratos = append(contratos, c)
@@ -473,17 +504,7 @@ func repararOfflineParaOnline(tag string, db *sql.DB) error {
 	corrigidos := 0
 	agora := fuso.Agora()
 	for _, c := range contratos {
-		var acctID string
-		err := db.QueryRow(`
-			SELECT acctuniqueid FROM radacct
-			WHERE contrato_id = ? AND acctstoptime IS NULL
-			LIMIT 1
-		`, c.ID).Scan(&acctID)
-		if err != nil {
-			continue
-		}
-
-		_, err = db.Exec(`
+		_, err := db.Exec(`
 			UPDATE sgp_clientes_contratos
 			SET acctuniqueid = ?, ws_update_sequencia = ?,
 			    conexao = 'Online', auth_type = 'Radius',
@@ -491,7 +512,7 @@ func repararOfflineParaOnline(tag string, db *sql.DB) error {
 			    data_ultima_conexao_atividade = ?,
 			    hora_ultima_conexao_atividade = ?
 			WHERE id = ?
-		`, acctID, c.WSUpdateSequencia+1,
+		`, c.RadAcctUniqueID, c.WSUpdateSequencia+1,
 			agora.Format("2006-01-02 15:04:05"), agora.Format("2006-01-02"), agora.Format("15:04:05"),
 			c.ID)
 		if err != nil {
