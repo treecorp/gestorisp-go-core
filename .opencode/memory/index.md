@@ -3,18 +3,18 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron)
 
-**Ultima atualizacao:** 23/06/2026 (22:30)
+**Ultima atualizacao:** 23/06/2026 (23:15)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
-| Decisoes | 7 |
+| Decisoes | 8 |
 | Bugs | 1 |
 | Convencoes | 4 |
-| Gotchas | 5 |
+| Gotchas | 6 |
 | Padroes | 2 |
-| **Total** | **19** |
+| **Total** | **21** |
 
 ## Indice
 
@@ -25,6 +25,7 @@
 - [004 - Estrutura modular para comportar fases futuras](decisions/004-estrutura-modular-fases.md)
 - [005 - Adocao do Banco de Memoria do Projeto (BMP)](decisions/005-adocao-bmp-memoria.md)
 - [006 - Port do cron_1 com go-routeros + fuso centralizado](decisions/006-cron-1-routeros-fuso.md)
+- [007 - Abordagem mista para queries (SELECT batch JOIN + UPDATE individual)](decisions/007-batch-join-misto.md)
 
 ### Bugs
 - [001 - Nome do banco incorreto: gispadm vs gisp_adm](bugs/001-nome-banco-incorreto.md)
@@ -41,6 +42,7 @@
 - [003 - WS2 retorna JSON array, nao objeto](gotchas/003-ws2-retorna-array-json.md)
 - [004 - Worker deve usar prefetch 1 (uma mensagem por vez)](gotchas/004-prefetch-1-worker.md)
 - [005 - POP pode ficar offline entre check_pop_status e cron_1](gotchas/005-pop-status-stale.md)
+- [006 - contrato_pop_id pode ser NULL na radacct](gotchas/006-contrato-pop-id-null.md)
 
 ### Padroes
 - [001 - Tarefa cron config-driven](patterns/001-tarefa-cron-config-driven.md)

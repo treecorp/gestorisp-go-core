@@ -25,19 +25,18 @@ func main() {
 
 	w := worker.NovoWorker(cfg, rabbit)
 	w.Iniciar([]worker.Consumidor{
-		// TEMPORARIO: apenas cron_1 ativo para depuracao
-		// {
-		// 	Fila:    "check_pop_status",
-		// 	Handler: worker.HandlerCheckPopStatus,
-		// },
-		// {
-		// 	Fila:    "run_cluster",
-		// 	Handler: worker.HandlerRunCluster,
-		// },
-		// {
-		// 	Fila:    "sync_conexoes_radius_arquivo",
-		// 	Handler: worker.HandlerSyncConexoesRadiusArquivo,
-		// },
+		{
+			Fila:    "check_pop_status",
+			Handler: worker.HandlerCheckPopStatus,
+		},
+		{
+			Fila:    "run_cluster",
+			Handler: worker.HandlerRunCluster,
+		},
+		{
+			Fila:    "sync_conexoes_radius_arquivo",
+			Handler: worker.HandlerSyncConexoesRadiusArquivo,
+		},
 		{
 			Fila:    "cron_1",
 			Handler: worker.HandlerCron1,
