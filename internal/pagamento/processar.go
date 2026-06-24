@@ -79,12 +79,6 @@ func ProcessarPagamento(db *sql.DB, instancia dominio.Instancia, data map[string
 		return processarExternal(db, instancia, data, iuguFaturaID, externalRef)
 	}
 
-	if len(externalRef) == 9 {
-		accountID := data["account_id"]
-		logger.Info(tag, "Instancia %d: fluxo Juno via Iugu iugu_fatura=%s ref=%s", instancia.ID, iuguFaturaID, externalRef)
-		return processarJuno(db, instancia, data, iuguFaturaID, statusEsperado, accountID, externalRef)
-	}
-
 	logger.Info(tag, "Instancia %d: fluxo Iugu direto iugu_fatura=%s ref=%s", instancia.ID, iuguFaturaID, externalRef)
 	return processarIuguDireto(db, instancia, data, iuguFaturaID, statusEsperado, externalRef)
 }
@@ -121,37 +115,7 @@ func processarIuguDireto(db *sql.DB, instancia dominio.Instancia, data map[strin
 		return nil, nil
 	}
 
-	return executarBaixa(db, instancia, data, iuguFaturaID, fatura, gatewayToken, "", statusEsperado)
-}
-
-func processarJuno(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, statusEsperado string, accountID string, externalRef string) (*ResultadoBaixa, error) {
-	var fatura faturaRow
-	err := db.QueryRow(`SELECT id, token, valor, contrato_id, cliente_token, contrato_token, gateway_id, status 
-		FROM sgp_clientes_faturas WHERE bf_code = ?`, externalRef).Scan(
-		&fatura.ID, &fatura.Token, &fatura.Valor, &fatura.ContratoID,
-		&fatura.ClienteToken, &fatura.ContratoToken, &fatura.GatewayID, &fatura.Status,
-	)
-	if err != nil {
-		logger.Aviso(tag, "Instancia %d: fatura bf_code %s nao encontrada iugu_fatura=%s: %v", instancia.ID, externalRef, iuguFaturaID, err)
-		marcarErroGatilho(db, iuguFaturaID, statusEsperado, "Erro 1", fmt.Sprintf("Fatura iugu %s nao encontrada", iuguFaturaID))
-		return nil, nil
-	}
-	if fatura.Status == "Pago" {
-		logger.Info(tag, "Instancia %d: fatura %d ja estava paga (Juno, contrato=%d valor=%s)", instancia.ID, fatura.ID, fatura.ContratoID, fatura.Valor)
-		marcarErroGatilho(db, iuguFaturaID, statusEsperado, "Erro 2", fmt.Sprintf("Fatura %d ja estava paga", fatura.ID))
-		return nil, nil
-	}
-
-	logger.Info(tag, "Instancia %d: fatura %d encontrada via bf_code (contrato=%d valor=%s)", instancia.ID, fatura.ID, fatura.ContratoID, fatura.Valor)
-
-	var gatewayToken string
-	err = db.QueryRow(`SELECT iugu_token FROM sgp_gateway_pagamentos WHERE iugu_account_id = ?`, accountID).Scan(&gatewayToken)
-	if err != nil {
-		logger.Aviso(tag, "Instancia %d: gateway iugu_account_id %s nao encontrado: %v", instancia.ID, accountID, err)
-		return nil, nil
-	}
-
-	return executarBaixa(db, instancia, data, iuguFaturaID, fatura, gatewayToken, "Recebido via JUNO atraves da importacao IUGU", statusEsperado)
+	return executarBaixa(db, instancia, data, iuguFaturaID, fatura, gatewayToken, statusEsperado)
 }
 
 func processarExternal(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, externalRef string) (*ResultadoBaixa, error) {
@@ -203,10 +167,10 @@ func processarExternal(db *sql.DB, instancia dominio.Instancia, data map[string]
 		return nil, nil
 	}
 
-	return executarBaixa(db, instancia, data, iuguFaturaID, fatura, gatewayToken, "", "externally_paid")
+	return executarBaixa(db, instancia, data, iuguFaturaID, fatura, gatewayToken, "externally_paid")
 }
 
-func executarBaixa(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, fatura faturaRow, gatewayToken string, observacao string, statusEsperado string) (*ResultadoBaixa, error) {
+func executarBaixa(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, fatura faturaRow, gatewayToken string, statusEsperado string) (*ResultadoBaixa, error) {
 	payerName := data["payer_name"]
 	logger.Info(tag, "Instancia %d: baixando fatura %d (contrato=%d valor=%s pagador=%s)", instancia.ID, fatura.ID, fatura.ContratoID, fatura.Valor, payerName)
 
@@ -283,7 +247,7 @@ func executarBaixa(db *sql.DB, instancia dominio.Instancia, data map[string]stri
 	)
 
 	lancarCaixa(tx, fatura, valorPago, dataHora, protocolo)
-	contrato := criarProtocoloBaixa(tx, fatura, valorPago, dataHora, protocolo, observacao)
+	contrato := criarProtocoloBaixa(tx, fatura, valorPago, dataHora, protocolo)
 	resultado := desbloquearContratoDB(tx, db, instancia, fatura.ContratoID, dataHora, contrato)
 
 	if err := tx.Commit(); err != nil {
@@ -379,7 +343,7 @@ func lancarCaixa(tx *sql.Tx, fatura faturaRow, valorPago string, dataHora string
 	logger.Info(tag, "Caixa fatura %d: saldo %d -> %d (global=%d)", fatura.ID, saldoAtual, novoSaldo, saldoGlobal)
 }
 
-func criarProtocoloBaixa(tx *sql.Tx, fatura faturaRow, valorPago string, dataHora string, protocolo string, observacao string) *contratoRow {
+func criarProtocoloBaixa(tx *sql.Tx, fatura faturaRow, valorPago string, dataHora string, protocolo string) *contratoRow {
 	contrato, err := buscarContrato(tx, fatura.ContratoID)
 	if err != nil {
 		logger.Aviso(tag, "Contrato %d nao encontrado protocolo fatura %d: %v", fatura.ContratoID, fatura.ID, err)
@@ -389,9 +353,6 @@ func criarProtocoloBaixa(tx *sql.Tx, fatura faturaRow, valorPago string, dataHor
 	agoraShort := fuso.Agora().Format("02/01/2006 15:04")
 	descricao := fmt.Sprintf("Fatura n %d valor R$ %s valor recebido R$ %s Contrato n %d (%s) baixada em %s",
 		fatura.ID, formatarMoeda(fatura.Valor), formatarMoeda(valorPago), contrato.ID, contrato.ClienteNome, agoraShort)
-	if observacao != "" {
-		descricao = descricao + ". " + observacao
-	}
 
 	dadosAntigos, _ := json.Marshal(map[string]interface{}{"fatura": map[string]interface{}{"id": fatura.ID, "status": fatura.Status}})
 	dadosNovos, _ := json.Marshal(map[string]interface{}{"fatura": map[string]interface{}{"id": fatura.ID, "status": "Pago"}})
