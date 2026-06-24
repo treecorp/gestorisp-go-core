@@ -26,9 +26,9 @@ type radacctRecord struct {
 	NASIPAddress        string
 	NASPortID           sql.NullString
 	NASPortType         sql.NullString
-	AcctStartTime       sql.NullString
-	AcctUpdateTime      sql.NullString
-	AcctStopTime        sql.NullString
+	AcctStartTime       sql.NullTime
+	AcctUpdateTime      sql.NullTime
+	AcctStopTime        sql.NullTime
 	AcctInterval        sql.NullInt64
 	AcctSessionTime     sql.NullInt64
 	AcctAuthentic       string
@@ -191,20 +191,16 @@ func processarRegistro(tag string, db *sql.DB, rec radacctRecord, colunasDisponi
 	}
 	defer tx.Rollback()
 
-	jaExiste, err := radacctidExisteNoArquivo(tx, rec.RadAcctID)
-	if err != nil {
-		return fmt.Errorf("erro ao verificar radacct_arquivo: %w", err)
-	}
-
 	cols, _ := montarColunasValores(rec, colunasDisponiveis)
 
-	if jaExiste {
-		err = atualizarRadacctArquivo(tx, cols, rec.RadAcctID)
-	} else {
-		err = inserirRadacctArquivo(tx, cols)
-	}
+	err = inserirRadacctArquivo(tx, cols)
 	if err != nil {
-		return fmt.Errorf("erro ao escrever em radacct_arquivo: %w", err)
+		if strings.Contains(err.Error(), "1062") {
+			err = atualizarRadacctArquivoPorAcctUniqueID(tx, cols, rec.AcctUniqueID)
+		}
+		if err != nil {
+			return fmt.Errorf("erro ao escrever em radacct_arquivo: %w", err)
+		}
 	}
 
 	if err := deletarRadacct(tx, rec.RadAcctID); err != nil {
@@ -216,19 +212,6 @@ func processarRegistro(tag string, db *sql.DB, rec radacctRecord, colunasDisponi
 	}
 
 	return nil
-}
-
-func radacctidExisteNoArquivo(tx *sql.Tx, radacctid int64) (bool, error) {
-	query := `SELECT radacctid FROM radacct_arquivo WHERE radacctid = ? LIMIT 1`
-	var id int64
-	err := tx.QueryRow(query, radacctid).Scan(&id)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("erro ao consultar radacct_arquivo: %w", err)
-	}
-	return true, nil
 }
 
 type parColunaValor struct {
@@ -322,6 +305,27 @@ func atualizarRadacctArquivo(tx *sql.Tx, cols []parColunaValor, radacctid int64)
 	valores = append(valores, radacctid)
 
 	query := fmt.Sprintf("UPDATE radacct_arquivo SET %s WHERE radacctid = ?",
+		strings.Join(sets, ", "))
+
+	_, err := tx.Exec(query, valores...)
+	return err
+}
+
+func atualizarRadacctArquivoPorAcctUniqueID(tx *sql.Tx, cols []parColunaValor, acctUniqueID string) error {
+	var sets []string
+	var valores []interface{}
+
+	for _, p := range cols {
+		if p.Coluna == "acctuniqueid" || p.Coluna == "radacctid" {
+			continue
+		}
+		sets = append(sets, fmt.Sprintf("%s = ?", p.Coluna))
+		valores = append(valores, p.Valor)
+	}
+
+	valores = append(valores, acctUniqueID)
+
+	query := fmt.Sprintf("UPDATE radacct_arquivo SET %s WHERE acctuniqueid = ?",
 		strings.Join(sets, ", "))
 
 	_, err := tx.Exec(query, valores...)

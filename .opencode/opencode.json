@@ -1,4 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": [".opencode/AGENTS.md"]
+  "instructions": [".opencode/AGENTS.md"],
+  "plugin": ["~/.config/opencode/node_modules/superpowers"]
 }
