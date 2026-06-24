@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron)
 
-**Ultima atualizacao:** 23/06/2026 (23:15)
+**Ultima atualizacao:** 23/06/2026 (23:50)
 
 ## Estatisticas
 
@@ -12,9 +12,9 @@
 | Decisoes | 8 |
 | Bugs | 1 |
 | Convencoes | 4 |
-| Gotchas | 6 |
+| Gotchas | 7 |
 | Padroes | 2 |
-| **Total** | **21** |
+| **Total** | **22** |
 
 ## Indice
 
@@ -43,6 +43,7 @@
 - [004 - Worker deve usar prefetch 1 (uma mensagem por vez)](gotchas/004-prefetch-1-worker.md)
 - [005 - POP pode ficar offline entre check_pop_status e cron_1](gotchas/005-pop-status-stale.md)
 - [006 - contrato_pop_id pode ser NULL na radacct](gotchas/006-contrato-pop-id-null.md)
+- [007 - Colunas IPv6 ausentes em radacct quebram SELECT fixo](gotchas/007-colunas-ipv6-ausentes-radacct.md)
 
 ### Padroes
 - [001 - Tarefa cron config-driven](patterns/001-tarefa-cron-config-driven.md)
