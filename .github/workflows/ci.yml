@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: gestor
+  IMAGE_NAME: gestorisp-go-core
 
 jobs:
   build:
