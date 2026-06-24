@@ -233,7 +233,7 @@ func processarFatura(tag string, db *sql.DB, f faturaVencida, diasBloqueioGlobal
 	}
 
 	protocolo := 900000 + mrand.Intn(100000)
-	dadosAntigos, _ := json.Marshal(map[string]interface{}{
+	dadosAntigosBytes, errMarshal := json.Marshal(map[string]interface{}{
 		"fatura": map[string]interface{}{
 			"id":             f.ID,
 			"contrato_id":    f.ContratoID,
@@ -249,6 +249,10 @@ func processarFatura(tag string, db *sql.DB, f faturaVencida, diasBloqueioGlobal
 			"pppoe_user": contrato.PPPoEUser,
 		},
 	})
+	dadosAntigos := "{}"
+	if errMarshal == nil {
+		dadosAntigos = string(dadosAntigosBytes)
+	}
 
 	descricao := fmt.Sprintf("Bloqueio por atraso de pagamento ref fatura nº %d realizado as %s",
 		f.ID, agora.Format("02/01/2006 15:04"))
@@ -259,7 +263,7 @@ func processarFatura(tag string, db *sql.DB, f faturaVencida, diasBloqueioGlobal
 		 titulo, dados_antigos, user_id, user_nome)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'Robot')
 	`, gerarToken(), contrato.ID, contrato.Token, protocolo, agoraStr,
-		descricao, "Bloqueio de servico", string(dadosAntigos))
+		descricao, "Bloqueio de servico", dadosAntigos)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao inserir protocolo: %w", err)
 	}
@@ -290,6 +294,15 @@ func processarFatura(tag string, db *sql.DB, f faturaVencida, diasBloqueioGlobal
 	`, dataStr, horaStr, agoraStr, contrato.ID)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao atualizar conexao contrato: %w", err)
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO sgp_clientes_logs (token, tipo, contrato_id, contrato_token, data_hora, descricao)
+		VALUES (?, 'DESCONEXAO', ?, ?, ?, ?)
+	`, gerarToken(), contrato.ID, contrato.Token, agoraStr,
+		fmt.Sprintf("DESCONEXAO REALIZADA %s", agora.Format("02/01/2006 15:04:05")))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao inserir log desconexao: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -389,6 +402,3 @@ func desconectarCliente(tag string, cb clienteBloqueado, pops map[int]popInfo) {
 	logger.Info(tag, "Cliente %s: desconectado da RB (POP %d)", cb.PPPoEUser, pop.ID)
 }
 
-func gerarProtocolo() int {
-	return 900000 + mrand.Intn(100000)
-}
