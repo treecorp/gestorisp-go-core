@@ -41,6 +41,14 @@ func main() {
 			Fila:    "cron_1",
 			Handler: worker.HandlerCron1,
 		},
+		{
+			Fila:    "repair_radius_acctstoptime",
+			Handler: worker.HandlerRepairRadiusAcctstoptime,
+		},
+		{
+			Fila:    "limpeza_logs",
+			Handler: worker.HandlerLimpezaLogs,
+		},
 	})
 
 	quit := make(chan os.Signal, 1)
