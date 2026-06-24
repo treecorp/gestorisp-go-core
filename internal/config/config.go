@@ -6,6 +6,7 @@ import "os"
 type Config struct {
 	Banco               BancoConfig
 	RabbitMQ            RabbitMQConfig
+	GatewayPort         string
 	CI3EncryptionKey    string
 	DBInstanciaHostDev  string
 	DBInstanciaPortaDev string
@@ -43,6 +44,7 @@ func Carregar() *Config {
 			Usuario: obterEnv("RABBITMQ_USER", "guest"),
 			Senha:   obterEnv("RABBITMQ_PASS", "guest"),
 		},
+		GatewayPort:         obterEnv("GATEWAY_PORT", "8082"),
 		CI3EncryptionKey:    obterEnv("CI3_ENCRYPTION_KEY", "sjlkjl32oiPOIjkl2"),
 		DBInstanciaHostDev:  obterEnv("DB_INSTANCIA_HOST_DEV", ""),
 		DBInstanciaPortaDev: obterEnv("DB_INSTANCIA_PORT_DEV", ""),

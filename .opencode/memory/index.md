@@ -1,21 +1,21 @@
 
 # 🧠 Banco de Memoria do Projeto (BMP) — gestorisp-go-core
 
-**Status:** ✅ Ativo (Fase 1 - Cron)
+**Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu)
 
-**Ultima atualizacao:** 24/06/2026 (03:00)
+**Ultima atualizacao:** 24/06/2026 (13:30)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
-| Decisoes | 9 |
+| Decisoes | 10 |
 | Bugs | 1 |
 | Convencoes | 4 |
 | Gotchas | 7 |
 | Padroes | 2 |
-| Specs | 5 |
-| **Total** | **28** |
+| Specs | 6 |
+| **Total** | **30** |
 
 ## Indice
 
@@ -28,6 +28,9 @@
 - [006 - Port do cron_1 com go-routeros + fuso centralizado](decisions/006-cron-1-routeros-fuso.md)
 - [007 - Abordagem mista para queries (SELECT batch JOIN + UPDATE individual)](decisions/007-batch-join-misto.md)
 - [008 - Precedencia de dias_bloqueio + permitir_bloqueio no bloqueio de inadimplentes](decisions/008-dias-bloqueio-permitir-bloqueio.md)
+
+### Decisoes (Fase 2 - Gateway)
+- [009 - Gateway webhook Iugu como binario standalone HTTP](decisions/009-gateway-iugu-standalone-http.md)
 
 ### Bugs
 - [001 - Nome do banco incorreto: gispadm vs gisp_adm](bugs/001-nome-banco-incorreto.md)
@@ -66,14 +69,20 @@
 | `listar_clientes_vencidos` | `listar_clientes_vencidos.go` | `0 10 14 * * *` |
 
 ### Pendentes
-Nenhum — todos os 7 handlers migrados.
+Proxima fase: Gateway de pagamentos (webhook Iugu) — implementado, aguardando deploy.
 
-### Specs
+### Fase 2 — Gateway Iugu (portado)
+| Binario | Porta | Rota |
+|---------|-------|------|
+| `cmd/gateway` | 8082 | `POST /pagamentos/iugu/gatilho/{token}` |
+
+### Especificacoes
 - [SDD-008 - repair_radius_acctstoptime](../specs/sdd-008-repair-radius-acctstoptime.md)
 - [SDD-009 - limpeza_logs](../specs/sdd-009-limpeza-logs.md)
 - [SDD-010 - listar_clientes_vencidos](../specs/sdd-010-listar-clientes-vencidos.md)
 - [SDD-011 - CI/CD GitHub Actions + Docker](../specs/sdd-011-ci-cd-github-actions-docker.md)
 - [SDD-012 - Ajuste agendamentos cron](../specs/sdd-012-ajuste-agendamentos-cron.md)
+- [SDD-014 - Gateway pagamentos Iugu](../specs/sdd-014-gateway-pagamentos-iugu.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.

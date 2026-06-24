@@ -49,6 +49,28 @@ func BuscarInstanciasAtivas(cfg config.BancoConfig, configGeral *config.Config) 
 	return instancias, nil
 }
 
+// BuscarInstanciaPorToken retorna os dados de conexao de uma instancia pelo token
+func BuscarInstanciaPorToken(token string, cfg config.BancoConfig, configGeral *config.Config) (dominio.Instancia, error) {
+	if err := Ping(cfg); err != nil {
+		return dominio.Instancia{}, err
+	}
+
+	query := `SELECT id, token, env_dbname, env_dbuser, env_dbpass, env_dbhost 
+	           FROM instancias WHERE token = ?`
+
+	var i dominio.Instancia
+	i.EnvDBPort = "3306"
+	err := pool.QueryRow(query, token).Scan(
+		&i.ID, &i.Token, &i.EnvDBName, &i.EnvDBUser, &i.EnvDBPass, &i.EnvDBHost,
+	)
+	if err != nil {
+		return dominio.Instancia{}, err
+	}
+
+	sobrescreverHostDev(configGeral, &i)
+	return i, nil
+}
+
 // sobrescreverHostDev substitui o host e porta da instancia pelos valores de desenvolvimento
 // quando as variaveis DB_INSTANCIA_HOST_DEV e DB_INSTANCIA_PORT_DEV estiverem configuradas
 func sobrescreverHostDev(cfg *config.Config, i *dominio.Instancia) {
