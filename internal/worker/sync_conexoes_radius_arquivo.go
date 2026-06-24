@@ -17,6 +17,18 @@ var colunasIPv6 = []string{
 	"mikrotikrealm",
 }
 
+var colunasObrigatoriasRadacct = []string{
+	"radacctid", "acctsessionid", "acctuniqueid", "username",
+	"realm", "nasipaddress", "nasportid", "nasporttype",
+	"acctstarttime", "acctupdatetime", "acctstoptime",
+	"acctinterval", "acctsessiontime", "acctauthentic",
+	"connectinfo_start", "connectinfo_stop",
+	"acctinputoctets", "acctoutputoctets",
+	"calledstationid", "callingstationid",
+	"acctterminatecause", "servicetype", "framedprotocol",
+	"framedipaddress", "groupname", "contrato_id", "contrato_pop_id",
+}
+
 type radacctRecord struct {
 	RadAcctID           int64
 	AcctSessionID       string
@@ -69,7 +81,12 @@ func HandlerSyncConexoesRadiusArquivo(instancia dominio.Instancia) error {
 		return fmt.Errorf("erro ao detectar colunas de radacct_arquivo: %w", err)
 	}
 
-	registros, err := buscarRadacctPendenteArquivo(db)
+	colunasRadacct, err := detectarColunasRadacct(db)
+	if err != nil {
+		return fmt.Errorf("erro ao detectar colunas de radacct: %w", err)
+	}
+
+	registros, err := buscarRadacctPendenteArquivo(db, colunasRadacct)
 	if err != nil {
 		return fmt.Errorf("erro ao buscar registros pendentes: %w", err)
 	}
@@ -130,18 +147,43 @@ func detectarColunasArquivo(db *sql.DB) (map[string]bool, error) {
 	return existentes, nil
 }
 
-func buscarRadacctPendenteArquivo(db *sql.DB) ([]radacctRecord, error) {
-	query := `SELECT radacctid, acctsessionid, acctuniqueid, username,
-		realm, nasipaddress, nasportid, nasporttype,
-		acctstarttime, acctupdatetime, acctstoptime,
-		acctinterval, acctsessiontime, acctauthentic,
-		connectinfo_start, connectinfo_stop,
-		acctinputoctets, acctoutputoctets,
-		calledstationid, callingstationid,
-		acctterminatecause, servicetype, framedprotocol,
-		framedipaddress, groupname, contrato_id, contrato_pop_id,
-		framedipv6pool, framedipv6prefix, delegatedipv6prefix, mikrotikrealm
-	FROM radacct
+func detectarColunasRadacct(db *sql.DB) (map[string]bool, error) {
+	query := `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE TABLE_SCHEMA = (SELECT DATABASE())
+		AND TABLE_NAME = 'radacct'
+		ORDER BY ORDINAL_POSITION`
+
+	linhas, err := db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao consultar INFORMATION_SCHEMA para radacct: %w", err)
+	}
+	defer linhas.Close()
+
+	existentes := make(map[string]bool)
+	for linhas.Next() {
+		var nome string
+		if err := linhas.Scan(&nome); err != nil {
+			return nil, fmt.Errorf("erro ao escanear nome da coluna: %w", err)
+		}
+		existentes[nome] = true
+	}
+	if err := linhas.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, col := range colunasIPv6 {
+		if !existentes[col] {
+			logger.Aviso("sync_conexoes_radius_arquivo", "coluna IPv6 '%s' ausente em radacct - ignorada no SELECT", col)
+		}
+	}
+
+	return existentes, nil
+}
+
+func buscarRadacctPendenteArquivo(db *sql.DB, colunasRadacct map[string]bool) ([]radacctRecord, error) {
+	colunasSELECT := montarListaColunasSELECT(colunasRadacct)
+
+	query := fmt.Sprintf(`SELECT %s FROM radacct
 	WHERE acctauthentic = 'RADIUS'
 		AND acctstoptime IS NOT NULL
 		AND contrato_id IS NOT NULL
@@ -149,7 +191,7 @@ func buscarRadacctPendenteArquivo(db *sql.DB) ([]radacctRecord, error) {
 			WHERE acctstoptime IS NOT NULL
 			AND contrato_id IS NOT NULL) > 1
 	ORDER BY radacctid DESC
-	LIMIT 4999`
+	LIMIT 4999`, colunasSELECT)
 
 	linhas, err := db.Query(query)
 	if err != nil {
@@ -160,18 +202,8 @@ func buscarRadacctPendenteArquivo(db *sql.DB) ([]radacctRecord, error) {
 	var resultado []radacctRecord
 	for linhas.Next() {
 		var r radacctRecord
-		if err := linhas.Scan(
-			&r.RadAcctID, &r.AcctSessionID, &r.AcctUniqueID, &r.Username,
-			&r.Realm, &r.NASIPAddress, &r.NASPortID, &r.NASPortType,
-			&r.AcctStartTime, &r.AcctUpdateTime, &r.AcctStopTime,
-			&r.AcctInterval, &r.AcctSessionTime, &r.AcctAuthentic,
-			&r.ConnectInfoStart, &r.ConnectInfoStop,
-			&r.AcctInputOctets, &r.AcctOutputOctets,
-			&r.CalledStationID, &r.CallingStationID,
-			&r.AcctTerminateCause, &r.ServiceType, &r.FramedProtocol,
-			&r.FramedIPAddress, &r.GroupName, &r.ContratoID, &r.ContratoPopID,
-			&r.FramedIPv6Pool, &r.FramedIPv6Prefix, &r.DelegatedIPv6Prefix, &r.MikrotikRealm,
-		); err != nil {
+		targets := montarScanTargets(&r, colunasRadacct)
+		if err := linhas.Scan(targets...); err != nil {
 			return nil, fmt.Errorf("erro ao escanear radacct: %w", err)
 		}
 		resultado = append(resultado, r)
@@ -182,6 +214,70 @@ func buscarRadacctPendenteArquivo(db *sql.DB) ([]radacctRecord, error) {
 	}
 
 	return resultado, linhas.Err()
+}
+
+func montarListaColunasSELECT(colunasRadacct map[string]bool) string {
+	var cols []string
+	for _, nome := range colunasObrigatoriasRadacct {
+		if colunasRadacct[nome] {
+			cols = append(cols, nome)
+		}
+	}
+	for _, nome := range colunasIPv6 {
+		if colunasRadacct[nome] {
+			cols = append(cols, nome)
+		}
+	}
+	return strings.Join(cols, ", ")
+}
+
+func montarScanTargets(r *radacctRecord, colunasRadacct map[string]bool) []interface{} {
+	m := map[string]interface{}{
+		"radacctid":          &r.RadAcctID,
+		"acctsessionid":      &r.AcctSessionID,
+		"acctuniqueid":       &r.AcctUniqueID,
+		"username":           &r.Username,
+		"realm":              &r.Realm,
+		"nasipaddress":       &r.NASIPAddress,
+		"nasportid":          &r.NASPortID,
+		"nasporttype":        &r.NASPortType,
+		"acctstarttime":      &r.AcctStartTime,
+		"acctupdatetime":     &r.AcctUpdateTime,
+		"acctstoptime":       &r.AcctStopTime,
+		"acctinterval":       &r.AcctInterval,
+		"acctsessiontime":    &r.AcctSessionTime,
+		"acctauthentic":      &r.AcctAuthentic,
+		"connectinfo_start":  &r.ConnectInfoStart,
+		"connectinfo_stop":   &r.ConnectInfoStop,
+		"acctinputoctets":    &r.AcctInputOctets,
+		"acctoutputoctets":   &r.AcctOutputOctets,
+		"calledstationid":    &r.CalledStationID,
+		"callingstationid":   &r.CallingStationID,
+		"acctterminatecause": &r.AcctTerminateCause,
+		"servicetype":        &r.ServiceType,
+		"framedprotocol":     &r.FramedProtocol,
+		"framedipaddress":    &r.FramedIPAddress,
+		"groupname":          &r.GroupName,
+		"contrato_id":        &r.ContratoID,
+		"contrato_pop_id":    &r.ContratoPopID,
+		"framedipv6pool":     &r.FramedIPv6Pool,
+		"framedipv6prefix":   &r.FramedIPv6Prefix,
+		"delegatedipv6prefix": &r.DelegatedIPv6Prefix,
+		"mikrotikrealm":      &r.MikrotikRealm,
+	}
+
+	var targets []interface{}
+	for _, nome := range colunasObrigatoriasRadacct {
+		if colunasRadacct[nome] {
+			targets = append(targets, m[nome])
+		}
+	}
+	for _, nome := range colunasIPv6 {
+		if colunasRadacct[nome] {
+			targets = append(targets, m[nome])
+		}
+	}
+	return targets
 }
 
 func processarRegistro(tag string, db *sql.DB, rec radacctRecord, colunasDisponiveis map[string]bool) error {
