@@ -126,9 +126,11 @@ func syncConexoesRadius(tag string, db *sql.DB) error {
 		return nil
 	}
 
-	logger.Info(tag, "sync_conexoes_radius: %d sessoes orphan", len(sessoes))
+	logger.Info(tag, "sync_conexoes_radius: %d sessoes orphan encontradas", len(sessoes))
 
 	for _, s := range sessoes {
+		logger.Info(tag, "vinculando sessao %s ao contrato %d (pop %d)", s.AcctUniqueID, s.ContratoID, s.ContratoPopID)
+
 		_, err := db.Exec("UPDATE radacct SET contrato_id = ?, contrato_pop_id = ? WHERE acctuniqueid = ?",
 			s.ContratoID, s.ContratoPopID, s.AcctUniqueID)
 		if err != nil {
@@ -150,6 +152,8 @@ func syncConexoesRadius(tag string, db *sql.DB) error {
 			continue
 		}
 
+		logger.Info(tag, "contrato %d atualizado: acctuniqueid=%s ws_seq=%d", s.ContratoID, s.AcctUniqueID, wsSeq+1)
+
 		if s.ContratoStatus == "Ativo" {
 			var suspender string
 			err = db.QueryRow("SELECT COALESCE(suspender_contrato, '0') FROM sgp_clientes_contratos WHERE id = ?", s.ContratoID).Scan(&suspender)
@@ -162,6 +166,7 @@ func syncConexoesRadius(tag string, db *sql.DB) error {
 		}
 	}
 
+	logger.Info(tag, "sync_conexoes_radius: %d sessoes vinculadas", len(sessoes))
 	return nil
 }
 
@@ -213,8 +218,13 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 		contratos = append(contratos, c)
 	}
 	if contratos == nil {
+		logger.Info(tag, "sync_conexoes_radius_status: nenhum contrato com acctuniqueid")
 		return nil
 	}
+
+	logger.Info(tag, "sync_conexoes_radius_status: %d contratos para verificar", len(contratos))
+	online := 0
+	offline := 0
 
 	for _, c := range contratos {
 		if !c.AuthType.Valid || c.AuthType.String == "Local" {
@@ -237,6 +247,7 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 			if !s.AcctStopTime.Valid {
 				agora := fuso.Agora()
 				if c.Conexao == "Offline" {
+					logger.Info(tag, "contrato %d: Offline->Online (sessao ativa desde %s)", c.ID, s.AcctStartTime.String)
 					_, err = db.Exec(`
 						UPDATE sgp_clientes_contratos
 						SET conexao = 'Online', auth_type = 'Radius',
@@ -245,6 +256,7 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 						    hora_ultima_conexao_atividade = ?
 						WHERE id = ?
 					`, s.AcctStartTime.String, extrairData(s.AcctStartTime.String), extrairHora(s.AcctStartTime.String), c.ID)
+					online++
 				} else {
 					_, err = db.Exec(`
 						UPDATE sgp_clientes_contratos
@@ -256,6 +268,7 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 				}
 				_ = agora
 			} else {
+				logger.Info(tag, "contrato %d: Online->Offline (sessao encerrada em %s)", c.ID, s.AcctStopTime.String)
 				_, err = db.Exec(`
 					UPDATE sgp_clientes_contratos
 					SET conexao = 'Offline', auth_type = 'Radius',
@@ -265,6 +278,7 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 					    acctuniqueid = NULL
 					WHERE id = ?
 				`, s.AcctStopTime.String, extrairData(s.AcctStopTime.String), extrairHora(s.AcctStopTime.String), c.ID)
+				offline++
 			}
 			if err != nil {
 				logger.Erro(tag, "erro atualizar status contrato %d: %v", c.ID, err)
@@ -272,6 +286,7 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 		}
 	}
 
+	logger.Info(tag, "sync_conexoes_radius_status: %d Online, %d Offline", online, offline)
 	return nil
 }
 
@@ -301,6 +316,8 @@ func checkConexoesLocal(tag string, db *sql.DB, c contratoResumo) {
 	if statusConexao == "Offline" {
 		return
 	}
+
+	logger.Info(tag, "contrato %d: conexao local Online->Offline (auth_type=Local)", c.ID)
 
 	agora := fuso.Agora()
 	_, err = db.Exec(`
@@ -350,14 +367,20 @@ func desbloquearUsuariosTravados(tag string, db *sql.DB) error {
 		sessoes = append(sessoes, s)
 	}
 	if sessoes == nil {
+		logger.Info(tag, "desbloquear: nenhuma sessao travada")
 		return nil
 	}
 
+	logger.Info(tag, "desbloquear: %d sessoes travadas (>10min sem update)", len(sessoes))
 	pops := carregarPops(db)
+	fechadas := 0
+	puladas := 0
 
 	for _, s := range sessoes {
 		pop, ok := pops[s.ContratoPopID]
 		if !ok || pop.Status != "OPERACIONAL" {
+			logger.Info(tag, "sessao %s: POP %d nao operacional, preservando", s.AcctUniqueID, s.ContratoPopID)
+			puladas++
 			continue
 		}
 
@@ -368,11 +391,12 @@ func desbloquearUsuariosTravados(tag string, db *sql.DB) error {
 			Pass: pop.Pass,
 		})
 		if err != nil {
-			logger.Aviso(tag, "POP %d: %v - preservando sessao %s", pop.ID, err, s.AcctUniqueID)
+			logger.Aviso(tag, "sessao %s: POP %d (%s) inacessivel, preservando", s.AcctUniqueID, pop.ID, pop.IPv4)
+			puladas++
 			continue
 		}
 
-		ativo, _, _ := routeros.VerificarUsuarioAtivo(conn, s.Username)
+		ativo, _, err := routeros.VerificarUsuarioAtivo(conn, s.Username)
 		conn.Close()
 
 		causa := "NAS Error"
@@ -380,13 +404,25 @@ func desbloquearUsuariosTravados(tag string, db *sql.DB) error {
 			causa = "NAS Error(d)"
 		}
 
+		if err != nil {
+			logger.Aviso(tag, "sessao %s: erro ao consultar RB, preservando: %v", s.AcctUniqueID, err)
+			puladas++
+			continue
+		}
+
+		logger.Info(tag, "sessao %s: user=%s POP=%d ativo_na_rb=%v causa=%s acctupdatetime=%s",
+			s.AcctUniqueID, s.Username, pop.ID, ativo, causa, s.AcctUpdateTime)
+
 		_, err = db.Exec("UPDATE radacct SET acctstoptime = ?, acctterminatecause = ? WHERE acctuniqueid = ?",
 			s.AcctUpdateTime, causa, s.AcctUniqueID)
 		if err != nil {
 			logger.Erro(tag, "erro ao fechar sessao %s: %v", s.AcctUniqueID, err)
+			continue
 		}
+		fechadas++
 	}
 
+	logger.Info(tag, "desbloquear: %d fechadas, %d preservadas", fechadas, puladas)
 	return nil
 }
 
@@ -429,9 +465,12 @@ func repararOfflineParaOnline(tag string, db *sql.DB) error {
 		contratos = append(contratos, c)
 	}
 	if contratos == nil {
+		logger.Info(tag, "reparar_offline_para_online: nenhum contrato offline com sessao ativa")
 		return nil
 	}
 
+	logger.Info(tag, "reparar_offline_para_online: %d contratos offline com sessao ativa", len(contratos))
+	corrigidos := 0
 	agora := fuso.Agora()
 	for _, c := range contratos {
 		var acctID string
@@ -457,9 +496,13 @@ func repararOfflineParaOnline(tag string, db *sql.DB) error {
 			c.ID)
 		if err != nil {
 			logger.Erro(tag, "erro reparar contrato %d: %v", c.ID, err)
+			continue
 		}
+		logger.Info(tag, "contrato %d: Offline->Online (sessao ativa na radacct)", c.ID)
+		corrigidos++
 	}
 
+	logger.Info(tag, "reparar_offline_para_online: %d contratos corrigidos para Online", corrigidos)
 	return nil
 }
 
@@ -478,11 +521,14 @@ func repararOnlineParaOffline(tag string, db *sql.DB) error {
 	}
 	defer rows.Close()
 
+	corrigidos := 0
 	for rows.Next() {
 		var c contratoResumo
 		if err := rows.Scan(&c.ID, &c.Token, &c.Status, &c.Conexao, &c.AuthType, &c.AcctUniqueID, &c.WSUpdateSequencia); err != nil {
 			return fmt.Errorf("erro ao scanear contrato: %w", err)
 		}
+
+		logger.Info(tag, "contrato %d: Online->Offline (inativo >30min desde %s)", c.ID, limite.Format("2006-01-02 15:04:05"))
 
 		_, err := db.Exec(`
 			UPDATE sgp_clientes_contratos
@@ -491,8 +537,11 @@ func repararOnlineParaOffline(tag string, db *sql.DB) error {
 		`, c.ID)
 		if err != nil {
 			logger.Erro(tag, "erro ao marcar offline contrato %d: %v", c.ID, err)
+			continue
 		}
+		corrigidos++
 	}
 
+	logger.Info(tag, "reparar_online_para_offline: %d contratos corrigidos para Offline", corrigidos)
 	return nil
 }
