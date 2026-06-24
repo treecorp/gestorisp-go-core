@@ -10,6 +10,7 @@ import (
 
 	"gestor/internal/dominio"
 	"gestor/internal/infra/banco"
+	"gestor/internal/infra/fuso"
 	"gestor/internal/infra/logger"
 )
 
@@ -492,10 +493,9 @@ func montarItemCoordenada(c linhaClienteCoordenada, desconexoes map[int]int) (co
 		logradouro += " - " + c.LogradouroBairro.String
 	}
 
-	var ultimaAtividade time.Time
+	ultimaAtividade := fuso.Agora()
 	if c.DataHoraUltimaConexaoAtividade.Valid {
-		parsed, err := time.Parse("2006-01-02 15:04:05", c.DataHoraUltimaConexaoAtividade.String)
-		if err == nil {
+		if parsed, err := time.Parse("2006-01-02 15:04:05", c.DataHoraUltimaConexaoAtividade.String); err == nil {
 			ultimaAtividade = parsed
 		}
 	}
