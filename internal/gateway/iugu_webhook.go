@@ -2,9 +2,7 @@ package gateway
 
 import (
 	"database/sql"
-	"encoding/json"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"gestor/internal/dominio"
@@ -29,26 +27,42 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Ins
 		return
 	}
 
-	event := r.PostFormValue("event")
-	dataJSON := r.PostFormValue("data")
+	if err := r.ParseForm(); err != nil {
+		logger.Aviso(tag, "Instancia %d: erro ao parsear form: %v", instancia.ID, err)
+		http.Error(w, "Erro ao parsear form", http.StatusBadRequest)
+		return
+	}
 
+	event := r.PostFormValue("event")
 	if event == "" {
+		logger.Aviso(tag, "Instancia %d: event nao informado no POST", instancia.ID)
 		http.Error(w, "event nao informado", http.StatusBadRequest)
 		return
 	}
-	if dataJSON == "" {
+
+	data := make(map[string]string)
+	for key, values := range r.Form {
+		if strings.HasPrefix(key, "data[") && strings.HasSuffix(key, "]") {
+			campo := key[5 : len(key)-1]
+			if len(values) > 0 {
+				data[campo] = values[0]
+			}
+		}
+	}
+
+	if len(data) == 0 {
+		logger.Aviso(tag, "Instancia %d: dados data[] nao encontrados no POST", instancia.ID)
 		http.Error(w, "data nao informado", http.StatusBadRequest)
 		return
 	}
 
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(dataJSON), &data); err != nil {
-		logger.Aviso(tag, "Instancia %d: erro ao decodificar data JSON: %v", instancia.ID, err)
-		http.Error(w, "data JSON invalido", http.StatusBadRequest)
-		return
-	}
+	iuguID := data["id"]
+	status := data["status"]
+	externalRef := data["external_reference"]
+	payerName := data["payer_name"]
 
-	logger.Info(tag, "Instancia %d: webhook recebido event=%s", instancia.ID, event)
+	logger.Info(tag, "Webhook: instancia=%d event=%s iugu_fatura=%s status=%s ref=%s pagador=%s",
+		instancia.ID, event, iuguID, status, truncate(externalRef, 20), payerName)
 
 	db, err := banco.ConectarInstancia(
 		instancia.EnvDBHost, instancia.EnvDBPort,
@@ -65,50 +79,61 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Ins
 	case "invoice.status_changed":
 		handleStatusChanged(w, db, data, instancia)
 	default:
-		logger.Info(tag, "Instancia %d: evento %s ignorado", instancia.ID, event)
+		logger.Info(tag, "Instancia %d: evento %s ignorado (iugu_fatura=%s)", instancia.ID, event, iuguID)
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func handleStatusChanged(w http.ResponseWriter, db *sql.DB, data map[string]interface{}, instancia dominio.Instancia) {
-	id, _ := data["id"].(string)
-	status, _ := data["status"].(string)
-	externalRef, _ := data["external_reference"].(string)
+func handleStatusChanged(w http.ResponseWriter, db *sql.DB, data map[string]string, instancia dominio.Instancia) {
+	id := data["id"]
+	status := data["status"]
+	externalRef := data["external_reference"]
 
 	if id == "" {
-		logger.Aviso(tag, "Instancia %d: id nao informado no data", instancia.ID)
+		logger.Aviso(tag, "Instancia %d: data[id] vazio no webhook", instancia.ID)
 		w.WriteHeader(http.StatusOK)
 		return
+	}
+
+	dadosJSON := ""
+	if j, ok := data["dados_json"]; ok {
+		dadosJSON = j
+	} else {
+		parts := make([]string, 0, len(data))
+		for k, v := range data {
+			parts = append(parts, k+"="+v)
+		}
+		dadosJSON = "{" + strings.Join(parts, ", ") + "}"
 	}
 
 	_, err := db.Exec(`INSERT INTO gisp_iugu_gatilhos 
 		(id, account_id, external_reference, source, order_id, status, event, dados_json, datetime_received)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id,
-		valorString(data, "account_id"),
+		data["account_id"],
 		externalRef,
-		valorString(data, "source"),
-		valorString(data, "order_id"),
+		data["source"],
+		data["order_id"],
 		status,
 		"invoice.status_changed",
-		valorString(data, "dados_json"),
+		dadosJSON,
 		fuso.Agora().Format("2006-01-02 15:04:05"),
 	)
 	if err != nil {
-		logger.Erro(tag, "Instancia %d: erro ao inserir gatilho %s: %v", instancia.ID, id, err)
+		logger.Aviso(tag, "Instancia %d: erro ao inserir gatilho %s: %v (ja existe?)", instancia.ID, id, err)
 	}
 
 	switch status {
 	case "paid":
-		logger.Info(tag, "Instancia %d: processando pagamento paid, fatura %s", instancia.ID, id)
+		logger.Info(tag, "Instancia %d: processando paid iugu_fatura=%s ref=%s", instancia.ID, id, truncate(externalRef, 20))
 		processarPagamento(w, db, data, id, instancia, "paid")
 
 	case "partially_paid":
-		logger.Info(tag, "Instancia %d: processando pagamento partially_paid, fatura %s", instancia.ID, id)
+		logger.Info(tag, "Instancia %d: processando partially_paid iugu_fatura=%s ref=%s", instancia.ID, id, truncate(externalRef, 20))
 		processarPagamento(w, db, data, id, instancia, "partially_paid")
 
 	case "externally_paid":
-		logger.Info(tag, "Instancia %d: processando pagamento externally_paid, fatura %s", instancia.ID, id)
+		logger.Info(tag, "Instancia %d: processando externally_paid iugu_fatura=%s ref=%s", instancia.ID, id, truncate(externalRef, 20))
 		processarPagamentoExternal(w, db, data, id, instancia)
 
 	case "canceled":
@@ -121,26 +146,11 @@ func handleStatusChanged(w http.ResponseWriter, db *sql.DB, data map[string]inte
 	}
 }
 
-func valorString(data map[string]interface{}, chave string) string {
-	if v, ok := data[chave]; ok && v != nil {
-		if s, ok := v.(string); ok {
-			return s
-		}
+func truncate(s string, max int) string {
+	if len(s) > max {
+		return s[:max] + "..."
 	}
-	return ""
-}
-
-func valorInt(data map[string]interface{}, chave string) int {
-	if v, ok := data[chave]; ok && v != nil {
-		switch n := v.(type) {
-		case float64:
-			return int(n)
-		case string:
-			i, _ := strconv.Atoi(n)
-			return i
-		}
-	}
-	return 0
+	return s
 }
 
 func gerarProtocolo(min, max int) int {
