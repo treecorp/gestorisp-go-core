@@ -3,18 +3,18 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron)
 
-**Ultima atualizacao:** 23/06/2026
+**Ultima atualizacao:** 23/06/2026 (22:00)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
-|---|---|
+|---|---|---|
 | Decisoes | 5 |
 | Bugs | 1 |
 | Convencoes | 4 |
-| Gotchas | 2 |
+| Gotchas | 3 |
 | Padroes | 2 |
-| **Total** | **14** |
+| **Total** | **15** |
 
 ## Indice
 
@@ -37,6 +37,7 @@
 ### Gotchas (licoes aprendidas)
 - [001 - Porta RabbitMQ nao padrao 31837](gotchas/001-porta-rabbitmq-nao-padrao.md)
 - [002 - Type assertion em interface no retry](gotchas/002-type-assertion-retry.md)
+- [003 - WS2 retorna JSON array, nao objeto](gotchas/003-ws2-retorna-array-json.md)
 
 ### Padroes
 - [001 - Tarefa cron config-driven](patterns/001-tarefa-cron-config-driven.md)
