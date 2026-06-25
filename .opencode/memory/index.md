@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (14:46)
+**Ultima atualizacao:** 25/06/2026 (15:25)
 
 ## Estatisticas
 
@@ -12,10 +12,10 @@
 | Decisoes | 12 |
 | Bugs | 2 |
 | Convencoes | 4 |
-| Gotchas | 8 |
+| Gotchas | 9 |
 | Padroes | 2 |
 | Specs | 9 |
-| **Total** | **37** |
+| **Total** | **38** |
 
 ## Indice
 
@@ -55,6 +55,7 @@
 - [006 - contrato_pop_id pode ser NULL na radacct](gotchas/006-contrato-pop-id-null.md)
 - [007 - Colunas IPv6 ausentes em radacct quebram SELECT fixo](gotchas/007-colunas-ipv6-ausentes-radacct.md)
 - [008 - CAST('' AS UNSIGNED) retorna 0, nao NULL](gotchas/008-cast-string-vazia-unsigned.md)
+- [009 - PowerShell quoting com curl.exe para JSON quebra payload](gotchas/009-powershell-quoting-curl-json.md)
 
 ### Padroes
 - [001 - Tarefa cron config-driven](patterns/001-tarefa-cron-config-driven.md)
@@ -79,9 +80,11 @@
 - `dias_bloqueio` varchar: parse manual em Go com `strings.TrimSpace` + `strconv.Atoi` (HOTFIX-004)
 - Testes unitarios do gateway Iugu: 16 testes com dados reais (3 faturas reais extraidas do banco)
 - `formatarMoeda` corrigido: padding de zeros para centavos (`"5"` → `"0,05"`)
+- Gateway aceita JSON puro (`Content-Type: application/json`) — parse correto de event + data
+- Testado em producao com 3 webhooks reais (form + JSON) — todos processados com sucesso
 
 ### Pendentes
-Proxima fase: Testar gateway com webhook real do Iugu (nao retransmitido do PHP).
+- Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
 
 ### Fase 2 — Gateway Iugu (portado, agora assincrono)
 | Binario | Porta | Rota |
