@@ -19,31 +19,24 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Ins
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
-		logger.Aviso(tag, "Instancia %d: erro ao parsear form: %v", instancia.ID, err)
-		http.Error(w, "Erro ao parsear form", http.StatusBadRequest)
-		return
-	}
-
-	event := r.PostFormValue("event")
-	if event == "" {
-		logger.Aviso(tag, "Instancia %d: event nao informado no POST", instancia.ID)
-		http.Error(w, "event nao informado", http.StatusBadRequest)
-		return
-	}
-
+	event := ""
 	data := make(map[string]string)
-	for key, values := range r.Form {
-		if strings.HasPrefix(key, "data[") && strings.HasSuffix(key, "]") {
-			campo := key[5 : len(key)-1]
-			if len(values) > 0 {
-				data[campo] = values[0]
+
+	// Tenta parsear como form-urlencoded (PHP-style data[chave])
+	if err := r.ParseForm(); err == nil {
+		event = r.PostFormValue("event")
+		for key, values := range r.Form {
+			if strings.HasPrefix(key, "data[") && strings.HasSuffix(key, "]") {
+				campo := key[5 : len(key)-1]
+				if len(values) > 0 {
+					data[campo] = values[0]
+				}
 			}
 		}
 	}
 
-	// Fallback JSON: se form-urlencoded não trouxe data[], tenta ler JSON do body
-	if len(data) == 0 {
+	// Se nao achou event ou data via form, tenta JSON
+	if event == "" || len(data) == 0 {
 		body, err := io.ReadAll(r.Body)
 		if err == nil {
 			var j struct {
@@ -52,14 +45,21 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Ins
 			}
 			if json.Unmarshal(body, &j) == nil && j.Event != "" {
 				event = j.Event
-				data = j.Data
-				logger.Info(tag, "Instancia %d: webhook recebido via JSON fallback", instancia.ID)
+				if len(j.Data) > 0 {
+					data = j.Data
+				}
+				logger.Info(tag, "Instancia %d: webhook recebido via JSON", instancia.ID)
 			}
 		}
 	}
 
+	if event == "" {
+		logger.Aviso(tag, "Instancia %d: event nao informado", instancia.ID)
+		http.Error(w, "event nao informado", http.StatusBadRequest)
+		return
+	}
 	if len(data) == 0 {
-		logger.Aviso(tag, "Instancia %d: dados data[] nao encontrados no POST", instancia.ID)
+		logger.Aviso(tag, "Instancia %d: data nao informado", instancia.ID)
 		http.Error(w, "data nao informado", http.StatusBadRequest)
 		return
 	}
