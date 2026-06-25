@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	mrand "math/rand"
+	"strconv"
+	"strings"
 	"time"
 
 	"gestor/internal/dominio"
 	"gestor/internal/infra/banco"
 	"gestor/internal/infra/fuso"
 	"gestor/internal/infra/logger"
-	"gestor/internal/infra/routeros"
+	"gestor/internal/infra/mensageria"
 )
 
 type faturaVencida struct {
@@ -30,7 +32,7 @@ type contratoBloqueio struct {
 	Status           string
 	PPPoEUser        string
 	PermitirBloqueio int
-	DiasBloqueio     sql.NullInt64
+	DiasBloqueio     sql.NullString
 }
 
 type desbloqueioConfianca struct {
@@ -39,11 +41,12 @@ type desbloqueioConfianca struct {
 }
 
 type clienteBloqueado struct {
+	ContratoID int
 	PPPoEUser string
 	PopID     int
 }
 
-func HandlerListarClientesVencidos(instancia dominio.Instancia) error {
+func HandlerListarClientesVencidos(instancia dominio.Instancia, rabbit *mensageria.RabbitMQ) error {
 	tag := "listar_clientes_vencidos"
 
 	diaSemana := fuso.Agora().Weekday()
@@ -93,11 +96,32 @@ func HandlerListarClientesVencidos(instancia dominio.Instancia) error {
 		return nil
 	}
 
-	logger.Info(tag, "%d clientes para desconectar da RouterBoard", len(bloqueados))
+	logger.Info(tag, "%d clientes para publicar na fila desconectar_contrato", len(bloqueados))
 
 	pops := carregarPops(db)
 	for _, cb := range bloqueados {
-		desconectarCliente(tag, cb, pops)
+		pop, ok := pops[cb.PopID]
+		if !ok {
+			logger.Aviso(tag, "Cliente %s: POP %d nao encontrado", cb.PPPoEUser, cb.PopID)
+			continue
+		}
+
+		msg := dominio.MensagemDesconexaoContrato{
+			Instancia:  instancia,
+			ContratoID: cb.ContratoID,
+			PPPoEUser:  cb.PPPoEUser,
+			PopIPv4:    pop.IPv4,
+			PopPort:    pop.APIPort,
+			PopUser:    pop.User,
+			PopPass:    pop.Pass,
+			CriadoEm:   fuso.Agora().Format(time.RFC3339),
+		}
+
+		if err := rabbit.PublicarMensagem("desconectar_contrato", msg); err != nil {
+			logger.Erro(tag, "Erro ao publicar desconexao para %s: %v", cb.PPPoEUser, err)
+			continue
+		}
+		logger.Sucesso(tag, "Publicada desconexao para %s (contrato %d)", cb.PPPoEUser, cb.ContratoID)
 	}
 
 	logger.Sucesso(tag, "Bloqueio realizado com sucesso para %d contratos", len(bloqueados))
@@ -183,7 +207,12 @@ func processarFatura(tag string, db *sql.DB, f faturaVencida, diasBloqueioGlobal
 
 	diasBloqueio := diasBloqueioGlobal
 	if contrato.DiasBloqueio.Valid {
-		diasBloqueio = int(contrato.DiasBloqueio.Int64)
+		trimmed := strings.TrimSpace(contrato.DiasBloqueio.String)
+		if trimmed != "" {
+			if val, err := strconv.Atoi(trimmed); err == nil {
+				diasBloqueio = val
+			}
+		}
 	}
 
 	if diasAtraso <= diasBloqueio {
@@ -313,7 +342,11 @@ func processarFatura(tag string, db *sql.DB, f faturaVencida, diasBloqueioGlobal
 
 	logger.Sucesso(tag, "Contrato %d bloqueado com sucesso (fatura %d)", contrato.ID, f.ID)
 
-	return &clienteBloqueado{PPPoEUser: contrato.PPPoEUser, PopID: f.PopID}, nil
+	return &clienteBloqueado{
+		ContratoID: f.ContratoID,
+		PPPoEUser:  contrato.PPPoEUser,
+		PopID:      f.PopID,
+	}, nil
 }
 
 func lerContrato(db *sql.DB, contratoID int) (*contratoBloqueio, error) {
@@ -321,7 +354,7 @@ func lerContrato(db *sql.DB, contratoID int) (*contratoBloqueio, error) {
 	err := db.QueryRow(`
 		SELECT id, token, status, pppoe_user,
 		       COALESCE(permitir_bloqueio, 1) AS permitir_bloqueio,
-		       CAST(dias_bloqueio AS UNSIGNED) AS dias_bloqueio
+		       dias_bloqueio
 		FROM sgp_clientes_contratos WHERE id = ?
 	`, contratoID).Scan(&c.ID, &c.Token, &c.Status, &c.PPPoEUser,
 		&c.PermitirBloqueio, &c.DiasBloqueio)
@@ -364,41 +397,5 @@ func calcularDiasAtraso(vencimento string) int {
 	return dias
 }
 
-func desconectarCliente(tag string, cb clienteBloqueado, pops map[int]popInfo) {
-	pop, ok := pops[cb.PopID]
-	if !ok {
-		logger.Aviso(tag, "Cliente %s: POP %d nao encontrado", cb.PPPoEUser, cb.PopID)
-		return
-	}
 
-	conn, err := routeros.Conectar(routeros.DadosConexao{
-		IPv4: pop.IPv4,
-		Port: pop.APIPort,
-		User: pop.User,
-		Pass: pop.Pass,
-	})
-	if err != nil {
-		logger.Aviso(tag, "Cliente %s: POP %d (%s) inacessivel: %v", cb.PPPoEUser, pop.ID, pop.IPv4, err)
-		return
-	}
-	defer conn.Close()
-
-	ativo, sessionID, err := routeros.VerificarUsuarioAtivo(conn, cb.PPPoEUser)
-	if err != nil {
-		logger.Aviso(tag, "Cliente %s: erro ao consultar RB: %v", cb.PPPoEUser, err)
-		return
-	}
-
-	if !ativo {
-		logger.Info(tag, "Cliente %s: ja desconectado da RB", cb.PPPoEUser)
-		return
-	}
-
-	if err := routeros.DesconectarUsuario(conn, sessionID); err != nil {
-		logger.Aviso(tag, "Cliente %s: erro ao desconectar na RB: %v", cb.PPPoEUser, err)
-		return
-	}
-
-	logger.Info(tag, "Cliente %s: desconectado da RB (POP %d)", cb.PPPoEUser, pop.ID)
-}
 

@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"gestor/internal/config"
+	"gestor/internal/dominio"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
 	"gestor/internal/worker"
@@ -51,8 +52,10 @@ func main() {
 			Handler: worker.HandlerLimpezaLogs,
 		},
 		{
-			Fila:    "listar_clientes_vencidos",
-			Handler: worker.HandlerListarClientesVencidos,
+			Fila: "listar_clientes_vencidos",
+			Handler: func(instancia dominio.Instancia) error {
+				return worker.HandlerListarClientesVencidos(instancia, rabbit)
+			},
 		},
 	})
 

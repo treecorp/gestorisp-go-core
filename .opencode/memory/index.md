@@ -3,19 +3,19 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 24/06/2026 (16:00)
+**Ultima atualizacao:** 25/06/2026 (13:20)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
-| Decisoes | 11 |
-| Bugs | 1 |
+| Decisoes | 12 |
+| Bugs | 2 |
 | Convencoes | 4 |
-| Gotchas | 7 |
+| Gotchas | 8 |
 | Padroes | 2 |
-| Specs | 7 |
-| **Total** | **32** |
+| Specs | 8 |
+| **Total** | **36** |
 
 ## Indice
 
@@ -33,8 +33,12 @@
 - [009 - Gateway webhook Iugu como binario standalone HTTP](decisions/009-gateway-iugu-standalone-http.md)
 - [010 - Gateway assincrono via RabbitMQ + Worker Desconexao](decisions/010-gateway-assincrono-worker-desconexao.md)
 
+### Decisoes (Fase 3 - SO / Melhorias)
+- [011 - listar_clientes_vencidos publica na fila desconectar_contrato em vez de chamar RouterOS direto](decisions/011-listar-clientes-vencidos-desconexao-fila.md)
+
 ### Bugs
 - [001 - Nome do banco incorreto: gispadm vs gisp_adm](bugs/001-nome-banco-incorreto.md)
+- [002 - CAST dias_bloqueio retorna 0 para string vazia](bugs/002-cast-dias-bloqueio-string-vazia.md)
 
 ### Convencoes
 - [001 - Codigo e comentarios em portugues](conventions/001-codigo-em-portugues.md)
@@ -50,6 +54,7 @@
 - [005 - POP pode ficar offline entre check_pop_status e cron_1](gotchas/005-pop-status-stale.md)
 - [006 - contrato_pop_id pode ser NULL na radacct](gotchas/006-contrato-pop-id-null.md)
 - [007 - Colunas IPv6 ausentes em radacct quebram SELECT fixo](gotchas/007-colunas-ipv6-ausentes-radacct.md)
+- [008 - CAST('' AS UNSIGNED) retorna 0, nao NULL](gotchas/008-cast-string-vazia-unsigned.md)
 
 ### Padroes
 - [001 - Tarefa cron config-driven](patterns/001-tarefa-cron-config-driven.md)
@@ -68,6 +73,10 @@
 | `repair_radius_acctstoptime` | `repair_radius_acctstoptime.go` | `0 30 0 * * *` |
 | `limpeza_logs` | `limpeza_logs.go` | `0 30 0 * * *` |
 | `listar_clientes_vencidos` | `listar_clientes_vencidos.go` | `0 10 14 * * *` |
+
+### Melhorias recentes
+- `listar_clientes_vencidos` agora publica na fila `desconectar_contrato` em vez de chamar RouterOS direto (desacoplamento + retry infinito)
+- `dias_bloqueio` varchar: parse manual em Go com `strings.TrimSpace` + `strconv.Atoi` (HOTFIX-004)
 
 ### Pendentes
 Proxima fase: Testar gateway com webhook real do Iugu (nao retransmitido do PHP).
@@ -91,6 +100,7 @@ Proxima fase: Testar gateway com webhook real do Iugu (nao retransmitido do PHP)
 - [SDD-012 - Ajuste agendamentos cron](../specs/sdd-012-ajuste-agendamentos-cron.md)
 - [SDD-014 - Gateway pagamentos Iugu](../specs/sdd-014-gateway-pagamentos-iugu.md)
 - [SDD-015 - Gateway assincrono + Worker Desconexao](../specs/sdd-015-gateway-assincrono-worker-desconexao.md)
+- [HOTFIX-004 - Parse dias_bloqueio varchar com fallup](../specs/hotfix-004-cast-dias-bloqueio-varchar.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.
