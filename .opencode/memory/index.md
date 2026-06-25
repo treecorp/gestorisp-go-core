@@ -3,17 +3,13 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (16:30)
+**Ultima atualizacao:** 25/06/2026 (16:45)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
 | Decisoes | 12 |
-| Bugs | 2 |
-| Convencoes | 4 |
-| Gotchas | 9 |
-| Padroes | 2 |
 | Bugs | 2 |
 | Convencoes | 4 |
 | Gotchas | 9 |
@@ -87,6 +83,7 @@
 - Gateway aceita JSON puro (`Content-Type: application/json`) — parse correto de event + data
 - Testado em producao com 3 webhooks reais (form + JSON) — todos processados com sucesso
 - HOTFIX-005: gateway filtra apenas `invoice.status_changed` — eventos `invoice.created`/`invoice.released` ignorados (igual PHP legado)
+- HOTFIX-006: protocolo de baixa na faixa `300000-399999` (igual PHP legado)
 
 ### Pendentes
 - Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
@@ -113,6 +110,7 @@
 - [SDD-016 - Testes unitarios do Gateway Iugu](../specs/sdd-016-testes-unitarios-gateway-iugu.md)
 - [HOTFIX-004 - Parse dias_bloqueio varchar com fallup](../specs/hotfix-004-cast-dias-bloqueio-varchar.md)
 - [HOTFIX-005 - Filtrar eventos Iugu no gateway (apenas invoice.status_changed)](../specs/hotfix-005-filtrar-eventos-gateway.md)
+- [HOTFIX-006 - Gerar protocolo de baixa na faixa correta (300000-399999)](../specs/hotfix-006-protocolo-baixa-faixa-legado.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.

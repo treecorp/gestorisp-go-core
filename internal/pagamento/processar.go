@@ -220,7 +220,8 @@ func executarBaixa(db *sql.DB, instancia dominio.Instancia, data map[string]stri
 		dataPagto = dataPagto[:10]
 	}
 
-	protocolo := fmt.Sprintf("%d", gerarProtocolo(100000, 999999))
+	protocoloBaixa := fmt.Sprintf("%d", gerarProtocolo(100000, 999999))  // protocolo_baixa da fatura
+	protocolo := fmt.Sprintf("%d", gerarProtocolo(300000, 399999))       // protocolo do registro de baixa
 	dataHora := agora.Format("2006-01-02 15:04:05")
 	dataAtual := agora.Format("2006-01-02")
 	horaAtual := agora.Format("15:04:05")
@@ -242,7 +243,7 @@ func executarBaixa(db *sql.DB, instancia dominio.Instancia, data map[string]stri
 		user_nome = 'Gateway'
 		WHERE id = ?`,
 		valorPago, dataPagto, origem, dataAtual, horaAtual,
-		dataPagto+" 00:00:00", dataHora, protocolo, fatura.ID,
+		dataPagto+" 00:00:00", dataHora, protocoloBaixa, fatura.ID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao atualizar fatura %d: %w", fatura.ID, err)
