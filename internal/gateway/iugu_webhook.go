@@ -1,6 +1,8 @@
 package gateway
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -36,6 +38,22 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Ins
 			campo := key[5 : len(key)-1]
 			if len(values) > 0 {
 				data[campo] = values[0]
+			}
+		}
+	}
+
+	// Fallback JSON: se form-urlencoded não trouxe data[], tenta ler JSON do body
+	if len(data) == 0 {
+		body, err := io.ReadAll(r.Body)
+		if err == nil {
+			var j struct {
+				Event string            `json:"event"`
+				Data  map[string]string `json:"data"`
+			}
+			if json.Unmarshal(body, &j) == nil && j.Event != "" {
+				event = j.Event
+				data = j.Data
+				logger.Info(tag, "Instancia %d: webhook recebido via JSON fallback", instancia.ID)
 			}
 		}
 	}

@@ -56,12 +56,27 @@ type ResultadoBaixa struct {
 
 const tag = "pagamento"
 
-func ProcessarPagamento(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, statusEsperado string) (*ResultadoBaixa, error) {
+func ProcessarPagamento(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, statusEsperado string, event string) (*ResultadoBaixa, error) {
 	externalRef := data["external_reference"]
 
 	if iuguFaturaID == "" {
 		return nil, nil
 	}
+
+	// INSERT gisp_iugu_gatilhos (idempotência) — antes da TX
+	dadosJSON, _ := json.Marshal(data)
+	db.Exec(`INSERT INTO gisp_iugu_gatilhos 
+		(id, account_id, external_reference, status, event, dados_json, datetime_received)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE id = id`,
+		iuguFaturaID,
+		data["account_id"],
+		externalRef,
+		data["status"],
+		event,
+		string(dadosJSON),
+		fuso.Agora().Format("2006-01-02 15:04:05"),
+	)
 
 	var gispExec string
 	err := db.QueryRow(`SELECT COALESCE(gisp_exec, '0') FROM gisp_iugu_gatilhos WHERE id = ?`, iuguFaturaID).Scan(&gispExec)
@@ -76,7 +91,7 @@ func ProcessarPagamento(db *sql.DB, instancia dominio.Instancia, data map[string
 	}
 
 	if statusEsperado == "externally_paid" {
-		return processarExternal(db, instancia, data, iuguFaturaID, externalRef)
+		return processarExternal(db, instancia, data, iuguFaturaID, externalRef, event)
 	}
 
 	logger.Info(tag, "Instancia %d: fluxo Iugu direto iugu_fatura=%s ref=%s", instancia.ID, iuguFaturaID, externalRef)
@@ -118,7 +133,7 @@ func processarIuguDireto(db *sql.DB, instancia dominio.Instancia, data map[strin
 	return executarBaixa(db, instancia, data, iuguFaturaID, fatura, gatewayToken, statusEsperado)
 }
 
-func processarExternal(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, externalRef string) (*ResultadoBaixa, error) {
+func processarExternal(db *sql.DB, instancia dominio.Instancia, data map[string]string, iuguFaturaID string, externalRef string, event string) (*ResultadoBaixa, error) {
 	payerName := data["payer_name"]
 	if externalRef == "" {
 		logger.Aviso(tag, "Instancia %d: external_reference vazio iugu_fatura=%s", instancia.ID, iuguFaturaID)

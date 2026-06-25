@@ -43,7 +43,7 @@ func HandlerProcessarPagamentoIugu(body []byte, rabbit *mensageria.RabbitMQ) err
 	}
 	defer banco.FecharConexaoInstancia(db, tagPagamento)
 
-	resultado, err := pagamento.ProcessarPagamento(db, instancia, msg.Data, iuguID, status)
+	resultado, err := pagamento.ProcessarPagamento(db, instancia, msg.Data, iuguID, status, msg.Event)
 	if err != nil {
 		logger.Erro(tagPagamento, "Instancia %d: erro ao processar pagamento %s: %v", instancia.ID, iuguID, err)
 		return err
