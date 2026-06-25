@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (17:25)
+**Ultima atualizacao:** 25/06/2026 (19:40)
 
 ## Estatisticas
 
@@ -86,6 +86,7 @@
 - HOTFIX-006: protocolo de baixa na faixa `300000-399999` (igual PHP legado)
 - HOTFIX-007: corrigido JOIN `buscarContrato` de `cliente_id` para `cliente_token` (protocolo nao era gerado)
 - HOTFIX-008: corrigido panic `[:32]` no token do protocolo (slice bounds out of range)
+- Testado em producao: 3 baixas reais (27587, 27588, 27589) — protocolos 300002, 300005, 300008 gerados com sucesso
 
 ### Pendentes
 - Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
