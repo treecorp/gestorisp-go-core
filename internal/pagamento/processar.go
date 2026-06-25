@@ -373,7 +373,7 @@ func criarProtocoloBaixa(tx *sql.Tx, fatura faturaRow, valorPago string, dataHor
 	dadosAntigos, _ := json.Marshal(map[string]interface{}{"fatura": map[string]interface{}{"id": fatura.ID, "status": fatura.Status}})
 	dadosNovos, _ := json.Marshal(map[string]interface{}{"fatura": map[string]interface{}{"id": fatura.ID, "status": "Pago"}})
 
-	token := fmt.Sprintf("tok_%d", rand.Int63())[:32]
+	token := fmt.Sprintf("tok_%d", rand.Int63())
 
 	_, _ = tx.Exec(`INSERT INTO sgp_clientes_contratos_protocolos 
 		(token, contrato_id, contrato_token, protocolo, data_hora, descricao, titulo, dados_antigos, dados_novos, user_id, user_nome)
@@ -415,7 +415,7 @@ func desbloquearContratoDB(tx *sql.Tx, db *sql.DB, instancia dominio.Instancia, 
 	descricao := fmt.Sprintf("Contrato n %d (%s) desbloqueado em %s", contratoID, contrato.ClienteNome, agoraShort)
 	dadosAntigos, _ := json.Marshal(map[string]interface{}{"contrato": map[string]interface{}{"id": contratoID, "status": "Bloqueado"}})
 	dadosNovos, _ := json.Marshal(map[string]interface{}{"contrato": map[string]interface{}{"id": contratoID, "status": "Ativo"}})
-	token := fmt.Sprintf("tok_%d", rand.Int63())[:32]
+	token := fmt.Sprintf("tok_%d", rand.Int63())
 	bloqProtocolo := fmt.Sprintf("%d", gerarProtocolo(400000, 499999))
 
 	_, _ = tx.Exec(`INSERT INTO sgp_clientes_contratos_protocolos 
