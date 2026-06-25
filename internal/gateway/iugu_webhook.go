@@ -58,6 +58,14 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia dominio.Ins
 		http.Error(w, "event nao informado", http.StatusBadRequest)
 		return
 	}
+
+	// Apenas invoice.status_changed eh processado (comportamento legado PHP)
+	if event != "invoice.status_changed" {
+		logger.Info(tag, "Instancia %d: evento %s ignorado (apenas invoice.status_changed)", instancia.ID, event)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("200"))
+		return
+	}
 	if len(data) == 0 {
 		logger.Aviso(tag, "Instancia %d: data nao informado", instancia.ID)
 		http.Error(w, "data nao informado", http.StatusBadRequest)

@@ -79,7 +79,7 @@ func ProcessarPagamento(db *sql.DB, instancia dominio.Instancia, data map[string
 	)
 
 	var gispExec string
-	err := db.QueryRow(`SELECT COALESCE(gisp_exec, '0') FROM gisp_iugu_gatilhos WHERE id = ?`, iuguFaturaID).Scan(&gispExec)
+	err := db.QueryRow(`SELECT COALESCE(gisp_exec, '0') FROM gisp_iugu_gatilhos WHERE id = ? AND event = 'invoice.status_changed'`, iuguFaturaID).Scan(&gispExec)
 	if err == nil && gispExec == "1" {
 		logger.Info(tag, "Instancia %d: gatilho %s ja processado (ignorando)", instancia.ID, iuguFaturaID)
 		return nil, nil

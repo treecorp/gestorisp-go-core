@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (15:25)
+**Ultima atualizacao:** 25/06/2026 (16:30)
 
 ## Estatisticas
 
@@ -14,8 +14,12 @@
 | Convencoes | 4 |
 | Gotchas | 9 |
 | Padroes | 2 |
-| Specs | 9 |
-| **Total** | **38** |
+| Bugs | 2 |
+| Convencoes | 4 |
+| Gotchas | 9 |
+| Padroes | 2 |
+| Specs | 10 |
+| **Total** | **39** |
 
 ## Indice
 
@@ -82,6 +86,7 @@
 - `formatarMoeda` corrigido: padding de zeros para centavos (`"5"` → `"0,05"`)
 - Gateway aceita JSON puro (`Content-Type: application/json`) — parse correto de event + data
 - Testado em producao com 3 webhooks reais (form + JSON) — todos processados com sucesso
+- HOTFIX-005: gateway filtra apenas `invoice.status_changed` — eventos `invoice.created`/`invoice.released` ignorados (igual PHP legado)
 
 ### Pendentes
 - Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
@@ -107,6 +112,7 @@
 - [SDD-015 - Gateway assincrono + Worker Desconexao](../specs/sdd-015-gateway-assincrono-worker-desconexao.md)
 - [SDD-016 - Testes unitarios do Gateway Iugu](../specs/sdd-016-testes-unitarios-gateway-iugu.md)
 - [HOTFIX-004 - Parse dias_bloqueio varchar com fallup](../specs/hotfix-004-cast-dias-bloqueio-varchar.md)
+- [HOTFIX-005 - Filtrar eventos Iugu no gateway (apenas invoice.status_changed)](../specs/hotfix-005-filtrar-eventos-gateway.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.
