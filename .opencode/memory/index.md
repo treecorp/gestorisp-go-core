@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (13:20)
+**Ultima atualizacao:** 25/06/2026 (14:46)
 
 ## Estatisticas
 
@@ -14,8 +14,8 @@
 | Convencoes | 4 |
 | Gotchas | 8 |
 | Padroes | 2 |
-| Specs | 8 |
-| **Total** | **36** |
+| Specs | 9 |
+| **Total** | **37** |
 
 ## Indice
 
@@ -77,6 +77,8 @@
 ### Melhorias recentes
 - `listar_clientes_vencidos` agora publica na fila `desconectar_contrato` em vez de chamar RouterOS direto (desacoplamento + retry infinito)
 - `dias_bloqueio` varchar: parse manual em Go com `strings.TrimSpace` + `strconv.Atoi` (HOTFIX-004)
+- Testes unitarios do gateway Iugu: 16 testes com dados reais (3 faturas reais extraidas do banco)
+- `formatarMoeda` corrigido: padding de zeros para centavos (`"5"` → `"0,05"`)
 
 ### Pendentes
 Proxima fase: Testar gateway com webhook real do Iugu (nao retransmitido do PHP).
@@ -100,6 +102,7 @@ Proxima fase: Testar gateway com webhook real do Iugu (nao retransmitido do PHP)
 - [SDD-012 - Ajuste agendamentos cron](../specs/sdd-012-ajuste-agendamentos-cron.md)
 - [SDD-014 - Gateway pagamentos Iugu](../specs/sdd-014-gateway-pagamentos-iugu.md)
 - [SDD-015 - Gateway assincrono + Worker Desconexao](../specs/sdd-015-gateway-assincrono-worker-desconexao.md)
+- [SDD-016 - Testes unitarios do Gateway Iugu](../specs/sdd-016-testes-unitarios-gateway-iugu.md)
 - [HOTFIX-004 - Parse dias_bloqueio varchar com fallup](../specs/hotfix-004-cast-dias-bloqueio-varchar.md)
 
 ---

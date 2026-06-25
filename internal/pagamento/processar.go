@@ -502,8 +502,8 @@ func idCounter() int {
 
 func formatarMoeda(valor string) string {
 	limpo := limparNumero(valor)
-	if len(limpo) <= 2 {
-		return "0," + limpo
+	for len(limpo) < 3 {
+		limpo = "0" + limpo
 	}
 	reais := limpo[:len(limpo)-2]
 	centavos := limpo[len(limpo)-2:]
