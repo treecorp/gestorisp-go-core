@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (19:40)
+**Ultima atualizacao:** 25/06/2026 (20:10)
 
 ## Estatisticas
 
@@ -14,8 +14,8 @@
 | Convencoes | 4 |
 | Gotchas | 9 |
 | Padroes | 2 |
-| Specs | 12 |
-| **Total** | **41** |
+| Specs | 13 |
+| **Total** | **42** |
 
 ## Indice
 
@@ -87,6 +87,7 @@
 - HOTFIX-007: corrigido JOIN `buscarContrato` de `cliente_id` para `cliente_token` (protocolo nao era gerado)
 - HOTFIX-008: corrigido panic `[:32]` no token do protocolo (slice bounds out of range)
 - Testado em producao: 3 baixas reais (27587, 27588, 27589) — protocolos 300002, 300005, 300008 gerados com sucesso
+- SDD-017: nova API REST independente para desconexao PPPoE (`POST /api/v2/routeros/desconectarpppoe` na porta 8083)
 
 ### Pendentes
 - Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
@@ -95,6 +96,7 @@
 | Binario | Porta | Rota |
 |---------|-------|------|
 | `cmd/gateway` | 8082 | `POST /pagamentos/iugu/gatilho/{token}` |
+| `cmd/api` | 8083 | `POST /api/v2/routeros/desconectarpppoe` |
 
 ### Workers (novos)
 | Worker | Fila | Retry | Descricao |
@@ -116,6 +118,7 @@
 - [HOTFIX-006 - Gerar protocolo de baixa na faixa correta (300000-399999)](../specs/hotfix-006-protocolo-baixa-faixa-legado.md)
 - [HOTFIX-007 - Corrigir JOIN buscarContrato de cliente_id para cliente_token](../specs/hotfix-007-join-cliente-token-buscar-contrato.md)
 - [HOTFIX-008 - Corrigir panic token slice bounds out of range](../specs/hotfix-008-panic-token-slice-bounds.md)
+- [SDD-017 - API REST para Desconexao PPPoE](../specs/sdd-017-api-rest-desconexao-pppoe.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.
