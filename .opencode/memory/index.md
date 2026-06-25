@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (16:45)
+**Ultima atualizacao:** 25/06/2026 (17:15)
 
 ## Estatisticas
 
@@ -14,8 +14,8 @@
 | Convencoes | 4 |
 | Gotchas | 9 |
 | Padroes | 2 |
-| Specs | 10 |
-| **Total** | **39** |
+| Specs | 11 |
+| **Total** | **40** |
 
 ## Indice
 
@@ -84,6 +84,7 @@
 - Testado em producao com 3 webhooks reais (form + JSON) — todos processados com sucesso
 - HOTFIX-005: gateway filtra apenas `invoice.status_changed` — eventos `invoice.created`/`invoice.released` ignorados (igual PHP legado)
 - HOTFIX-006: protocolo de baixa na faixa `300000-399999` (igual PHP legado)
+- HOTFIX-007: corrigido JOIN `buscarContrato` de `cliente_id` para `cliente_token` (protocolo nao era gerado)
 
 ### Pendentes
 - Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
@@ -111,6 +112,7 @@
 - [HOTFIX-004 - Parse dias_bloqueio varchar com fallup](../specs/hotfix-004-cast-dias-bloqueio-varchar.md)
 - [HOTFIX-005 - Filtrar eventos Iugu no gateway (apenas invoice.status_changed)](../specs/hotfix-005-filtrar-eventos-gateway.md)
 - [HOTFIX-006 - Gerar protocolo de baixa na faixa correta (300000-399999)](../specs/hotfix-006-protocolo-baixa-faixa-legado.md)
+- [HOTFIX-007 - Corrigir JOIN buscarContrato de cliente_id para cliente_token](../specs/hotfix-007-join-cliente-token-buscar-contrato.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.

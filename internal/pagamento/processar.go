@@ -456,11 +456,11 @@ func desbloquearContratoDB(tx *sql.Tx, db *sql.DB, instancia dominio.Instancia, 
 
 func buscarContrato(q queryer, contratoID int) (*contratoRow, error) {
 	var c contratoRow
-	err := q.QueryRow(`SELECT c.id, c.token, c.status, c.cliente_id, 
+	err := q.QueryRow(`SELECT c.id, c.token, c.status, COALESCE(c.cliente_id, 0),
 		COALESCE(cli.pf_nome, cli.pj_razao_social, 'N/D') AS cliente_nome,
 		c.cliente_token, c.pop_id, c.pppoe_user 
 		FROM sgp_clientes_contratos c
-		LEFT JOIN sgp_clientes_new cli ON cli.id = c.cliente_id
+		LEFT JOIN sgp_clientes_new cli ON cli.token = c.cliente_token
 		WHERE c.id = ?`, contratoID).Scan(
 		&c.ID, &c.Token, &c.Status, &c.ClienteID,
 		&c.ClienteNome, &c.ClienteToken, &c.PopID, &c.PPPoEUser,
