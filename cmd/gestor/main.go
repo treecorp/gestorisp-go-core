@@ -40,7 +40,7 @@ func main() {
 		{Expressao: "0 */1 * * * *", Nome: "sincronizar_conexoes", Fila: "sync_conexoes_radius_arquivo"},
 		{Expressao: "0 30 0 * * *", Nome: "reparar_radius", Fila: "repair_radius_acctstoptime"},
 		{Expressao: "0 30 0 * * *", Nome: "limpeza_logs", Fila: "limpeza_logs"},
-		{Expressao: "0 10 14 * * *", Nome: "listar_clientes_vencidos", Fila: "listar_clientes_vencidos"},
+		// {Expressao: "0 10 14 * * *", Nome: "listar_clientes_vencidos", Fila: "listar_clientes_vencidos"},
 	})
 
 	// --- 5. Aguardar sinal de encerramento ---
