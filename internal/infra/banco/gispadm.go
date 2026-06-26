@@ -4,14 +4,14 @@ import (
 	"database/sql"
 
 	"gestor/internal/config"
-	"gestor/internal/dominio"
+	"gestor/internal/entity"
 	"gestor/internal/infra/logger"
 )
 
 // BuscarInstanciasAtivas retorna todas as instancias GISP-FULL com status Ativo
 // Query original do PHP: SELECT id, token, env_dbname, env_dbuser, env_dbpass, env_dbhost
 // FROM instancias WHERE app='GISP-FULL' AND status='Ativo'
-func BuscarInstanciasAtivas(cfg config.BancoConfig, configGeral *config.Config) ([]dominio.Instancia, error) {
+func BuscarInstanciasAtivas(cfg config.BancoConfig, configGeral *config.Config) ([]entity.Instancia, error) {
 	if err := Ping(cfg); err != nil {
 		return nil, err
 	}
@@ -27,9 +27,9 @@ func BuscarInstanciasAtivas(cfg config.BancoConfig, configGeral *config.Config) 
 	}
 	defer linhas.Close()
 
-	var instancias []dominio.Instancia
+	var instancias []entity.Instancia
 	for linhas.Next() {
-		var i dominio.Instancia
+		var i entity.Instancia
 		i.EnvDBPort = "3306"
 		if err := linhas.Scan(
 			&i.ID, &i.Token, &i.EnvDBName, &i.EnvDBUser, &i.EnvDBPass, &i.EnvDBHost,
@@ -50,21 +50,21 @@ func BuscarInstanciasAtivas(cfg config.BancoConfig, configGeral *config.Config) 
 }
 
 // BuscarInstanciaPorToken retorna os dados de conexao de uma instancia pelo token
-func BuscarInstanciaPorToken(token string, cfg config.BancoConfig, configGeral *config.Config) (dominio.Instancia, error) {
+func BuscarInstanciaPorToken(token string, cfg config.BancoConfig, configGeral *config.Config) (entity.Instancia, error) {
 	if err := Ping(cfg); err != nil {
-		return dominio.Instancia{}, err
+		return entity.Instancia{}, err
 	}
 
 	query := `SELECT id, token, env_dbname, env_dbuser, env_dbpass, env_dbhost 
 	           FROM instancias WHERE token = ?`
 
-	var i dominio.Instancia
+	var i entity.Instancia
 	i.EnvDBPort = "3306"
 	err := pool.QueryRow(query, token).Scan(
 		&i.ID, &i.Token, &i.EnvDBName, &i.EnvDBUser, &i.EnvDBPass, &i.EnvDBHost,
 	)
 	if err != nil {
-		return dominio.Instancia{}, err
+		return entity.Instancia{}, err
 	}
 
 	sobrescreverHostDev(configGeral, &i)
@@ -73,7 +73,7 @@ func BuscarInstanciaPorToken(token string, cfg config.BancoConfig, configGeral *
 
 // sobrescreverHostDev substitui o host e porta da instancia pelos valores de desenvolvimento
 // quando as variaveis DB_INSTANCIA_HOST_DEV e DB_INSTANCIA_PORT_DEV estiverem configuradas
-func sobrescreverHostDev(cfg *config.Config, i *dominio.Instancia) {
+func sobrescreverHostDev(cfg *config.Config, i *entity.Instancia) {
 	if cfg.DBInstanciaHostDev != "" {
 		logger.Info("gispadm", "Dev mode: substituindo host da instancia %d (%s -> %s)", i.ID, i.EnvDBHost, cfg.DBInstanciaHostDev)
 		i.EnvDBHost = cfg.DBInstanciaHostDev

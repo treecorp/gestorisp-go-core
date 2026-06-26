@@ -1,21 +1,21 @@
 
 # 🧠 Banco de Memoria do Projeto (BMP) — gestorisp-go-core
 
-**Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
+**Status:** ✅ Ativo (Fase 2 completa — Refatoracao estrutural v2)
 
-**Ultima atualizacao:** 25/06/2026 (20:45)
+**Ultima atualizacao:** 26/06/2026 (15:30)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
-| Decisoes | 12 |
+| Decisoes | 13 |
 | Bugs | 2 |
-| Convencoes | 4 |
+| Convencoes | 5 |
 | Gotchas | 9 |
 | Padroes | 2 |
-| Specs | 13 |
-| **Total** | **42** |
+| Specs | 20 |
+| **Total** | **51** |
 
 ## Indice
 
@@ -34,6 +34,8 @@
 - [010 - Gateway assincrono via RabbitMQ + Worker Desconexao](decisions/010-gateway-assincrono-worker-desconexao.md)
 
 ### Decisoes (Fase 3 - SO / Melhorias)
+### Decisoes (Fase 4 - Refatoracao Estrutural v2)
+- [013 - Nova estrutura padronizada entity/helpers/lib/repositorio/service/handler](decisions/013-nova-estrutura-padronizada.md)
 - [011 - listar_clientes_vencidos publica na fila desconectar_contrato em vez de chamar RouterOS direto](decisions/011-listar-clientes-vencidos-desconexao-fila.md)
 
 ### Bugs
@@ -96,6 +98,9 @@
 ### Pendentes
 - Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
 
+### Novo
+- `internal/lib/iugu/` — cliente HTTP reutilizável para API Iugu (SDD-019)
+
 ### Fase 2 — Gateway Iugu (portado, agora assincrono)
 | Binario | Porta | Rota |
 |---------|-------|------|
@@ -126,6 +131,16 @@
 - [HOTFIX-007 - Corrigir JOIN buscarContrato de cliente_id para cliente_token](../specs/hotfix-007-join-cliente-token-buscar-contrato.md)
 - [HOTFIX-008 - Corrigir panic token slice bounds out of range](../specs/hotfix-008-panic-token-slice-bounds.md)
 - [SDD-017 - API REST para Desconexao PPPoE](../specs/sdd-017-api-rest-desconexao-pppoe.md)
+- [SDD-018 - Entity + Helpers](../specs/sdd-018-entity-helpers.md)
+- [SDD-019 - Lib Iugu](../specs/sdd-019-lib-iugu.md)
+- [SDD-020 - Repositorios de Pagamento](../specs/sdd-020-repositorios-pagamento.md)
+- [SDD-021 - Repositorios de Infraestrutura](../specs/sdd-021-repositorios-infra.md)
+- [SDD-022 - Service de Pagamento](../specs/sdd-022-service-pagamento.md)
+- [SDD-023 - Service de Bloqueio](../specs/sdd-023-service-bloqueio.md)
+- [SDD-024 - Handler Gateway + API](../specs/sdd-024-handler-gateway-api.md)
+- [SDD-025 - Handler Worker + Cron](../specs/sdd-025-handler-worker-cron.md)
+- [SDD-026 - Cleanup Final](../specs/sdd-026-cleanup-final.md)
+- [SDD-019 - Lib Iugu](../specs/sdd-019-lib-iugu.md)
 
 ---
 > **Como usar:** sempre consulte as categorias relevantes antes de comecar uma tarefa.

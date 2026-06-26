@@ -6,7 +6,7 @@ import (
 	"syscall"
 
 	"gestor/internal/config"
-	"gestor/internal/cron"
+	"gestor/internal/handler/cron"
 	"gestor/internal/infra/banco"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"

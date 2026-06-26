@@ -10,7 +10,7 @@ import (
 	"github.com/streadway/amqp"
 
 	"gestor/internal/config"
-	"gestor/internal/dominio"
+	"gestor/internal/entity"
 	"gestor/internal/infra/logger"
 )
 
@@ -135,7 +135,7 @@ func (r *RabbitMQ) Fechar() {
 // Mesmo formato usado pelo PHP original:
 // $dados = base64_encode(json_encode($g));
 // echo shell_exec("curl {$RABBITMQ_PRODUCER_HOST}/{fila}?dados={$dados}");
-func (r *RabbitMQ) PublicarInstancia(fila string, instancia dominio.Instancia) error {
+func (r *RabbitMQ) PublicarInstancia(fila string, instancia entity.Instancia) error {
 	payload := map[string]interface{}{
 		"gisp_id":    instancia.ID,
 		"gisp_token": instancia.Token,

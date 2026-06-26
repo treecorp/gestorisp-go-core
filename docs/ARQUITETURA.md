@@ -1,235 +1,198 @@
+# Arquitetura do Sistema — Gestor ISP (Refatorado)
 
-# Arquitetura do Sistema
+## 1. Introdução
 
-## Visao Geral
+O Gestor ISP é um backend monolítico em Go que gerencia pagamentos (Iugu), bloqueio de clientes
+inadimplentes, sincronização de conexões PPPoE (RouterOS) e dashboards em tempo real (SSE).
+O sistema processa webhooks HTTP, filas RabbitMQ, tarefas cron e expõe uma API REST.
 
-O Gestor ISP e um backend unificado em Go que substitui a arquitetura de microsservicos legados em PHP 5.6 + CodeIgniter 3 HMVC. O sistema atua como orquestrador central, agendando tarefas e publicando mensagens no RabbitMQ para processamento pelos workers existentes.
+Esta documentação descreve a arquitetura pós-refatoração, organizada em camadas com
+separação clara de responsabilidades seguindo o padrão WMVC (Web MVC).
 
-## Diagrama de Arquitetura
+---
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           GESTOR (Go Binary)                                 │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │                           main.go                                     │   │
-│  │  Carrega config → Conecta banco → Conecta Rabbit → Inicia scheduler │   │
-│  └──────────────────────┬───────────────────────────────────────────────┘   │
-│                         │                                                   │
-│  ┌──────────────────────▼───────────────────────────────────────────────┐   │
-│  │                        config.Config                                  │   │
-│  │  Hosts, portas, credenciais (env vars)                                │   │
-│  └──────────────────────┬───────────────────────────────────────────────┘   │
-│                         │                                                   │
-│  ┌──────────────────────▼───────────────────────────────────────────────┐   │
-│  │                    Conexoes Compartilhadas                             │   │
-│  │                                                                        │   │
-│  │  ┌──────────────────────┐  ┌──────────────────────────────────────┐  │   │
-│  │  │   infra/banco/       │  │   infra/mensageria/                  │  │   │
-│  │  │   pool *sql.DB       │  │   *amqp.Connection + *amqp.Channel  │  │   │
-│  │  │   (10 conexoes max)  │  │   (monitoramento + reconexao auto)  │  │   │
-│  │  └──────────┬───────────┘  └──────────────┬───────────────────────┘  │   │
-│  └─────────────┼──────────────────────────────┼──────────────────────────┘   │
-│                │                              │                              │
-│  ┌─────────────▼──────────────────────────────▼──────────────────────────┐   │
-│  │                         cron/agendador.go                              │   │
-│  │                                                                        │   │
-│  │  robfig/cron v3 (cron.WithSeconds())                                  │   │
-│  │                                                                        │   │
-│  │   ┌────────────────────────────────────────────────────────────────┐   │   │
-│  │   │  7 tarefas registradas                                         │   │   │
-│  │   │                                                                 │   │   │
-│  │   │  "0 * * * * *"      → cron_1                                   │   │   │
-│  │   │  "0 */6 0,3-23 * * *" → run_cluster                            │   │   │
-│  │   │  "0 * * * * *"      → check_pop_status                         │   │   │
-│  │   │  "0 * * * * *"      → sync_conexoes_radius_arquivo             │   │   │
-│  │   │  "0 30 0 * * *"     → repair_radius_acctstoptime               │   │   │
-│  │   │  "0 30 0 * * *"     → limpeza_logs                              │   │   │
-│  │   │  "0 10 14 * * *"    → listar_clientes_vencidos                  │   │   │
-│  │   └────────────────────────────────────────────────────────────────┘   │   │
-│  └────────────────────────────────┬───────────────────────────────────────┘   │
-│                                   │                                           │
-│  ┌────────────────────────────────▼───────────────────────────────────────┐   │
-│  │                      cron/tarefas/base.go                               │   │
-│  │                                                                        │   │
-│  │  Para cada job:                                                        │   │
-│  │  1. Ping() no MySQL → se falhar, reconecta                            │   │
-│  │  2. BuscarInstanciasAtivas()                                          │   │
-│  │  3. Para cada instancia:                                              │   │
-│  │     a. Serializar struct → JSON                                       │   │
-│  │     b. Codificar em Base64                                            │   │
-│  │     c. Publicar na fila RabbitMQ (ate 3 tentativas)                   │   │
-│  │  4. Log do resultado                                                  │   │
-│  └────────────────────────────────────────────────────────────────────────┘   │
-└──────────────────────────────────┬────────────────────────────────────────────┘
-                                   │
-                                   ▼
-                    ┌─────────────────────────────┐
-                    │       RabbitMQ Server        │
-                    │       172.16.12.10:31837      │
-                    │                              │
-                    │   ┌─────────────────────┐    │
-                    │   │  cron_1             │    │
-                    │   │  run_cluster        │    │
-                    │   │  check_pop_status   │    │
-                    │   │  sync_conexoes...   │    │
-                    │   │  repair_radius...   │    │
-                    │   │  limpeza_logs       │    │
-                    │   │  listar_clientes... │    │
-                    │   └─────────────────────┘    │
-                    └──────────────┬───────────────┘
-                                   │
-                                   ▼
-                    ┌─────────────────────────────┐
-                    │    Workers (Node.js/PHP)     │
-                    │                              │
-                    │  worker.js                   │
-                    │  worker_cron_1.js            │
-                    │  worker_kubernets_v2.js      │
-                    │  worker2.js                  │
-                    │                              │
-                    │  Consomem filas e chamam     │
-                    │  API PHP para processar      │
-                    └─────────────────────────────┘
-                                   │
-                                   ▼
-                    ┌─────────────────────────────┐
-                    │    PHP Backend (CodeIgniter) │
-                    │                              │
-                    │  Webservices.php             │
-                    │  cron_1()                    │
-                    │  check_pop_status()          │
-                    │  limpeza_logs()              │
-                    │  ...                         │
-                    └─────────────────────────────┘
+## 2. Diagrama da Arquitetura
 
-                    ┌─────────────────────────────┐
-                    │   GISPADM (MySQL Central)    │
-                    │       177.136.249.51:31034    │
-                    │                              │
-                    │  instancias (tabela)          │
-                    │  ├── id                      │
-                    │  ├── token                   │
-                    │  ├── env_dbname              │
-                    │  ├── env_dbuser              │
-                    │  ├── env_dbpass              │
-                    │  └── env_dbhost              │
-                    └─────────────────────────────┘
+```mermaid
+graph TD
+    subgraph "Entrypoints (cmd/)"
+        GESTOR[cmd/gestor]
+        WORKER[cmd/worker]
+        GATEWAY[cmd/gateway]
+        API[cmd/api]
+    end
+
+    subgraph "Controllers (internal/handler/)"
+        CRON[handler/cron]
+        HW[handler/worker]
+        HG[handler/gateway]
+        HA[handler/api]
+    end
+
+    subgraph "Services (internal/service/)"
+        SP[service/pagamento]
+        SB[service/bloqueio]
+    end
+
+    subgraph "Data Access (internal/repositorio/)"
+        R[repositorio/*]
+    end
+
+    subgraph "Infrastructure (internal/infra/)"
+        DB[infra/banco]
+        MQ[infra/mensageria]
+        ROUTER[infra/routeros]
+        CRIPTO[infra/cripto]
+    end
+
+    subgraph "Support (internal/)"
+        ENT[entity]
+        HELP[helpers]
+        LIB[lib/iugu]
+    end
+
+    GESTOR --> CRON
+    WORKER --> HW
+    GATEWAY --> HG
+    API --> HA
+
+    CRON --> R
+    HW --> SP
+    HW --> SB
+    HG --> SP
+    HA --> SP
+
+    SP --> ENT
+    SP --> LIB
+    SP --> R
+    SB --> ENT
+    SB --> R
+
+    R --> DB
+    SP --> HELP
+    SB --> HELP
 ```
 
-## Fluxo de Execucao de uma Tarefa
+---
+
+## 3. Descrição das Camadas
+
+### `entity/` — Model (Dados)
+
+Entidades de domínio enriquecidas com métodos de negócio. Sem dependências externas.
+São os blocos fundamentais do sistema: `Instancia`, `Contrato`, `Fatura`,
+`MensagemPagamentoIugu`, `MensagemDesconexaoContrato`, `POP`.
+
+### `helpers/` — Helper (Funções Puras)
+
+Funções utilitárias sem estado ou dependências internas: formatação de moeda,
+geração de protocolo, manipulação de data/string, tokens criptográficos.
+
+### `lib/` — Library (Serviço Externo)
+
+Clientes para APIs externas. Atualmente `lib/iugu/cliente.go` encapsula chamadas HTTP
+para a API de fatura da Iugu. Separado de `service/` para permitir troca de provedor.
+
+### `repositorio/` — Model (Queries SQL)
+
+Acesso a dados no padrão Repository. Cada arquivo agrupa queries de uma entidade
+(`fatura_repo.go`, `contrato_repo.go`, etc.). Funções recebem `*sql.DB` ou `*sql.Tx`
+explicitamente — não há estado interno.
+
+### `service/` — Regra de Negócio
+
+Lógica de negócio pura. Services dependem de interfaces de repositório (não de implementações
+concretas). Não têm acesso direto a `*sql.DB`. Subdividido em:
+- `service/pagamento/`: processamento de webhooks Iugu, baixa financeira, desbloqueio
+- `service/bloqueio/`: detecção de inadimplência e aplicação de bloqueio
+
+### `handler/` — Controller (Orquestração)
+
+Camada de transporte/orquestração. Faz parse de requests, delega para services,
+formata respostas. **Não contém lógica de negócio nem SQL:**
+- `handler/gateway/`: HTTP gateway da Iugu (porta 8082)
+- `handler/api/`: REST API (porta 8083)
+- `handler/worker/`: consumidores RabbitMQ
+- `handler/cron/`: agendador de tarefas
+
+### `infra/` — Infraestrutura Base
+
+Conexões e serviços de sistema: pool MySQL, publisher RabbitMQ, cliente RouterOS,
+criptografia (CI3 + HKDF), logger ANSI, fuso horário. Apenas `handler/` e
+`repositorio/` dependem diretamente de `infra/`.
+
+---
+
+## 4. Fluxos de Dados
+
+### Webhook Iugu
 
 ```
-Agendador
-   │
-   ├── [HORA CERTA] Dispara tarefa em goroutine separada
-   │
-   ├── 1. Logger.Inicio("[fila] Iniciando execucao")
-   │
-   ├── 2. banco.Ping()                         ← Verifica se MySQL esta vivo
-   │      └── Se falhou → reconecta sozinho
-   │
-   ├── 3. banco.BuscarInstanciasAtivas()       ← SELECT no GISPADM
-   │      └── Se falhou → log erro e aborta
-   │
-   ├── 4. Para cada Instancia:
-   │      ├── rabbit.PublicarInstancia()
-   │      │     ├── Serializa struct → JSON
-   │      │     ├── Base64 encode
-   │      │     ├── QueueDeclare (non-durable)
-   │      │     └── Publish na fila
-   │      │
-   │      └── Se falhou → 3 tentativas (1s, 2s, 4s)
-   │                      Depois passa para proxima instancia
-   │
-   └── 5. Logger.Sucesso("[fila] Concluido para N instancias")
+Iugu → POST HTTP → handler/gateway → autentica token → RabbitMQ
+→ handler/worker → service/pagamento → consulta Iugu API
+→ repositorio → MySQL → publica desconexão se necessário
 ```
 
-## Decisoes Tecnicas
-
-### 1. Conexao Unica Compartilhada
-
-Diferente do PHP que abria uma conexao de banco por request, o Go mantem:
-- **Pool MySQL**: 10 conexoes max, 5 idle, lifetime 5min
-- **Conexao RabbitMQ**: unica, com reconexao automatica via NotifyClose
-
-### 2. Publicacao Direta no RabbitMQ
-
-O cron antigo fazia:
-```
-PHP → curl → Node.js Producer (3000) → RabbitMQ
-```
-
-O novo faz:
-```
-Go → amqp → RabbitMQ
-```
-
-Isso elimina o ponto de falha do Node.js Producer e reduz latencia.
-
-### 3. Resciliencia em Camadas
+### Desconexão PPPoE (RouterOS)
 
 ```
-┌───────────────────────────────────────────┐
-│            Loop Infinito                   │
-│  Conexao inicial: retry 2s..4s..8s..60s  │
-│  → Nunca desiste ate conectar             │
-├───────────────────────────────────────────┤
-│        Reconexao Automatica                │
-│  MySQL: Ping() falhou → reconecta         │
-│  Rabbit: NotifyClose → reconecta loop     │
-├───────────────────────────────────────────┤
-│        Retry por Instancia                │
-│  Publicacao: 3 tentativas (1s, 2s, 4s)   │
-│  → Falha 1 instancia nao quebra o lote   │
-└───────────────────────────────────────────┘
+HTTP/RabbitMQ → handler/api ou handler/worker → repositorio (busca contrato)
+→ infra/routeros → Mikrotik (disconnect PPPoE) → radacct UPDATE
 ```
 
-### 4. Logger Colorido
+### Cron (Bloqueio de Inadimplentes)
 
-Sem dependencias externas. Usa codigos ANSI nativos:
-
-| Nivel | Cor | Uso |
-|---|---|---|
-| INFO | Azul | Mensagens informativas |
-| SUCESSO | Verde | Operacoes concluidas |
-| AVISO | Amarelo | Tentativas de retry |
-| ERRO | Vermelho | Falhas operacionais |
-| DESTAQUE | Magenta | Eventos importantes |
-| INICIO | Magenta | Inicio de execucao |
-
-### 5. Formato dos Dados Trafegados
-
-O payload publicado no RabbitMQ mantem o formato original do PHP:
-
-```json
-{
-  "gisp_id": 12,
-  "gisp_token": "abc123token",
-  "hostname": "177.136.249.51",
-  "username": "root",
-  "password": "secreta",
-  "database": "gisp_cliente"
-}
+```
+handler/cron → ticker → repositorio (faturas vencidas)
+→ service/bloqueio → DeveBloquear → repositorio (UPDATE contrato)
+→ RabbitMQ (desconectar_contrato)
 ```
 
-Este JSON e codificado em Base64 antes de ser publicado na fila.
+### Dashboard SSE
 
-## Tecnologias
+```
+handler/logger → hook → SSE hub → navegador
+```
 
-| Tecnologia | Versao | Uso |
-|---|---|---|
-| Go | 1.22 | Linguagem principal |
+---
+
+## 5. Regras de Dependência entre Camadas
+
+```
+handler → service (via interfaces)
+handler → repositorio (para queries simples/leitura)
+service → entity, helpers, lib
+repositorio → entity (tipos de retorno), infra/banco (*sql.DB)
+handler → infra (mensageria, logger, banco)
+
+PROIBIDO:
+  repositorio → service
+  handler → infra/banco direto
+  service → infra/banco
+```
+
+### Mapa de Importações por Camada
+
+| Camada | Pode Importar | Não Pode Importar |
+|--------|---------------|-------------------|
+| `handler/` | `service/`, `repositorio/`, `infra/`, `entity/` | `lib/` (exceto indireto via service) |
+| `service/` | `repositorio/` (interface), `entity/`, `helpers/`, `lib/` | `infra/`, `handler/` |
+| `repositorio/` | `entity/`, `infra/banco` | `service/`, `handler/`, `lib/` |
+| `entity/` | nada (standard library only) | qualquer pacote interno |
+| `helpers/` | nada (standard library only) | qualquer pacote interno |
+| `lib/` | `entity/` | `service/`, `repositorio/` |
+
+---
+
+## 6. Tecnologias
+
+| Tecnologia | Versão | Uso |
+|------------|--------|-----|
+| Go | 1.22+ | Linguagem principal |
 | robfig/cron | v3 | Agendador de tarefas |
 | streadway/amqp | v1.1 | Cliente RabbitMQ |
 | go-sql-driver/mysql | v1.9 | Driver MySQL |
-| RabbitMQ | 3.x | Mensageria (existente) |
+| routeros | — | API RouterOS Mikrotik |
+| RabbitMQ | 3.x | Mensageria |
+| Iugu API | v1 | Gateway de pagamentos |
 | Docker | qualquer | Empacotamento |
-| Alpine Linux | 3.19 | Imagem base |
-
-## Seguranca
-
-- **Conexoes MySQL**: autenticacao por usuario/senha
-- **Conexoes RabbitMQ**: autenticacao por usuario/senha
-- **Dados em transito**: sem criptografia (rede interna)
-- **Hardcoded temporario**: as credenciais estao no Dockerfile e serao removidas na Fase 2

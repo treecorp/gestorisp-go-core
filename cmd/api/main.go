@@ -7,9 +7,9 @@ import (
 	"syscall"
 	"time"
 
-	"gestor/internal/api"
+	"gestor/internal/handler/api"
 	"gestor/internal/config"
-	"gestor/internal/gateway"
+	"gestor/internal/infra/banco"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
 )
@@ -21,7 +21,7 @@ func main() {
 	cfg := config.Carregar()
 
 	logger.Info("api", "Conectando ao banco global GISPADM...")
-	if err := gateway.ConectarBancoGlobal(cfg.Banco); err != nil {
+	if _, err := banco.Conectar(cfg.Banco); err != nil {
 		logger.Erro("api", "Falha ao conectar no banco global: %v", err)
 		os.Exit(1)
 	}

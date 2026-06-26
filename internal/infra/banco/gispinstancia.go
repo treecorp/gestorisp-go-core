@@ -8,7 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 
 	"gestor/internal/config"
-	"gestor/internal/dominio"
+	"gestor/internal/entity"
 	"gestor/internal/infra/logger"
 )
 
@@ -35,7 +35,7 @@ func ConectarInstancia(hostname, porta, username, password, database string) (*s
 	return db, nil
 }
 
-func BuscarPopsOperacionais(db *sql.DB) ([]dominio.Pop, error) {
+func BuscarPopsOperacionais(db *sql.DB) ([]entity.Pop, error) {
 	query := `SELECT id, ipv4, api_port, user, pass, status, status_timeout, status_timeout_data_hora 
 	           FROM sgp_pop WHERE status = 'OPERACIONAL' ORDER BY id ASC`
 
@@ -45,9 +45,9 @@ func BuscarPopsOperacionais(db *sql.DB) ([]dominio.Pop, error) {
 	}
 	defer linhas.Close()
 
-	var pops []dominio.Pop
+	var pops []entity.Pop
 	for linhas.Next() {
-		var p dominio.Pop
+		var p entity.Pop
 		if err := linhas.Scan(
 			&p.ID, &p.IPv4, &p.APIPort, &p.User, &p.Pass,
 			&p.Status, &p.StatusTimeout, &p.StatusTimeoutDataHora,
