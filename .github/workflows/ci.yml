@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   pull_request:
-    branches: [main]
+    branches: [main, v2]
 
 env:
   REGISTRY: ghcr.io
@@ -27,19 +27,27 @@ jobs:
       - name: Compilar
         run: go build ./...
 
+      - name: Definir tag Docker
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "TAG=latest" >> $GITHUB_ENV
+          else
+            echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
+
       - name: Build imagem Docker
         run: >
           docker build
-          -t ${{ env.REGISTRY }}/${{ secrets.GH_USER }}/${{ env.IMAGE_NAME }}:latest
+          -t ${{ env.REGISTRY }}/${{ secrets.GH_USER }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
           -f Dockerfile .
 
       - name: Login GHCR
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v2'
         run: |
           echo "${{ secrets.GH_TOKEN }}" | docker login ${{ env.REGISTRY }} \
             -u ${{ secrets.GH_USER }} --password-stdin
 
       - name: Push imagem
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v2'
         run: |
-          docker push ${{ env.REGISTRY }}/${{ secrets.GH_USER }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ secrets.GH_USER }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
