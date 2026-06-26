@@ -8,10 +8,8 @@ info:
   contact:
     name: Tree Corp
 servers:
-  - url: http://localhost:8083
-    description: Desenvolvimento
-  - url: https://api.gestor.isp:8083
-    description: Producao
+  - url: "{{.ServerURL}}"
+    description: Proxy (dinamico)
 
 paths:
   /api/v2/routeros/desconectarpppoe:

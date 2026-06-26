@@ -1,11 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
 	"net/http"
 	"strings"
+	"text/template"
 	"time"
 
 	"gestor/internal/config"
@@ -15,7 +17,7 @@ import (
 )
 
 //go:embed openapi.yaml
-var openapiYAML []byte
+var openapiYAML string
 
 type Servidor struct {
 	cfg     *config.Config
@@ -89,9 +91,39 @@ func (s *Servidor) handlePagamentoIugu(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Servidor) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		if r.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+
+	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = r.Host
+	}
+
+	tpl, err := template.New("openapi").Parse(openapiYAML)
+	if err != nil {
+		logger.Erro(tag, "Erro ao fazer parse do template openapi.yaml: %v", err)
+		responderJSON(w, http.StatusInternalServerError, resposta{Sucesso: false, Erro: "Erro interno"})
+		return
+	}
+
+	var buf bytes.Buffer
+	if err := tpl.Execute(&buf, map[string]string{
+		"ServerURL": fmt.Sprintf("%s://%s", scheme, host),
+	}); err != nil {
+		logger.Erro(tag, "Erro ao renderizar template openapi.yaml: %v", err)
+		responderJSON(w, http.StatusInternalServerError, resposta{Sucesso: false, Erro: "Erro interno"})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/x-yaml")
 	w.WriteHeader(http.StatusOK)
-	w.Write(openapiYAML)
+	w.Write(buf.Bytes())
 }
 
 func (s *Servidor) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
