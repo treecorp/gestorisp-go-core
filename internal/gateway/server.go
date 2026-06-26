@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -53,7 +54,7 @@ func (s *Servidor) handleGatilho(w http.ResponseWriter, r *http.Request) {
 	token := strings.TrimRight(path, "/")
 
 	if token == "" {
-		http.Error(w, "Token nao informado", http.StatusBadRequest)
+		responderJSON(w, http.StatusBadRequest, respostaJSON{Sucesso: false, Erro: "Token nao informado"})
 		return
 	}
 
@@ -62,7 +63,7 @@ func (s *Servidor) handleGatilho(w http.ResponseWriter, r *http.Request) {
 	instancia, err := Autenticar(token, s.cfg.Banco, s.cfg)
 	if err != nil {
 		logger.Aviso("gateway", "Token invalido: %s", token)
-		http.Error(w, "Nao permitido", http.StatusForbidden)
+		responderJSON(w, http.StatusForbidden, respostaJSON{Sucesso: false, Erro: "Nao permitido"})
 		return
 	}
 
@@ -77,4 +78,16 @@ func PingHandler(w http.ResponseWriter, r *http.Request) {
 func ConectarBancoGlobal(cfg config.BancoConfig) error {
 	_, err := banco.Conectar(cfg)
 	return err
+}
+
+type respostaJSON struct {
+	Sucesso  bool   `json:"sucesso"`
+	Mensagem string `json:"mensagem,omitempty"`
+	Erro     string `json:"erro,omitempty"`
+}
+
+func responderJSON(w http.ResponseWriter, status int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
 }

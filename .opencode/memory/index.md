@@ -3,7 +3,7 @@
 
 **Status:** ✅ Ativo (Fase 1 - Cron completo, Fase 2 - Gateway Iugu assincrono)
 
-**Ultima atualizacao:** 25/06/2026 (20:10)
+**Ultima atualizacao:** 25/06/2026 (20:45)
 
 ## Estatisticas
 
@@ -88,6 +88,10 @@
 - HOTFIX-008: corrigido panic `[:32]` no token do protocolo (slice bounds out of range)
 - Testado em producao: 3 baixas reais (27587, 27588, 27589) — protocolos 300002, 300005, 300008 gerados com sucesso
 - SDD-017: nova API REST independente para desconexao PPPoE (`POST /api/v2/routeros/desconectarpppoe` na porta 8083)
+- Rota `/api/v2/gateway/pagamentos/iugu/gatilho/{token}` adicionada na API (reaproveita funcoes do gateway)
+- Todas as respostas do gateway legado agora retornam JSON (em vez de HTML)
+- Swagger UI disponivel em `/swagger` e spec em `/openapi.yaml`
+- 404 catch-all retorna JSON em vez de HTML padrao do Go
 
 ### Pendentes
 - Reativar cron `listar_clientes_vencidos` em `cmd/gestor/main.go`
@@ -97,6 +101,9 @@
 |---------|-------|------|
 | `cmd/gateway` | 8082 | `POST /pagamentos/iugu/gatilho/{token}` |
 | `cmd/api` | 8083 | `POST /api/v2/routeros/desconectarpppoe` |
+| `cmd/api` | 8083 | `POST /api/v2/gateway/pagamentos/iugu/gatilho/{token}` |
+| `cmd/api` | 8083 | `GET /swagger` — Swagger UI |
+| `cmd/api` | 8083 | `GET /openapi.yaml` — Spec OpenAPI |
 
 ### Workers (novos)
 | Worker | Fila | Retry | Descricao |

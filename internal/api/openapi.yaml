@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: API Gestor ISP
+  description: |
+    API unificada para desconexao PPPoE em RouterOS e webhooks de pagamento Iugu.
+    Todas as respostas retornam JSON, inclusive erros.
+  version: 1.0.0
+  contact:
+    name: Tree Corp
+servers:
+  - url: http://localhost:8083
+    description: Desenvolvimento
+  - url: https://api.gestor.isp:8083
+    description: Producao
+
+paths:
+  /api/v2/routeros/desconectarpppoe:
+    post:
+      summary: Desconectar PPPoE
+      description: >
+        Publica uma solicitacao de desconexao PPPoE na fila `desconectar_contrato`
+        do RabbitMQ. O worker `desconectar_contrato` processa a fila e executa
+        a desconexao no RouterOS com retry infinito.
+      tags:
+        - RouterOS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitacaoDesconectarPPPoE'
+            example:
+              instancia_id: 1
+              contrato_id: 1113
+              cliente_nome: Fulano de Tal
+              pppoe_user: fulano@isp
+              pop_ipv4: 177.136.249.55
+              pop_port: "8728"
+              pop_user: admin
+              pop_pass: senha
+      responses:
+        '200':
+          description: Publicado na fila com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaSucesso'
+        '400':
+          description: Erro de validacao (campo obrigatorio faltando ou JSON invalido)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaErro'
+        '405':
+          description: Metodo nao permitido (apenas POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaErro'
+        '500':
+          description: Erro interno (RabbitMQ indisponivel)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaErro'
+
+  /api/v2/gateway/pagamentos/iugu/gatilho/{token}:
+    post:
+      summary: Webhook Iugu
+      description: >
+        Recebe webhooks de pagamento Iugu, autentica a instancia pelo token,
+        valida o evento e publica na fila `processar_pagamento_iugu`.
+        Comportamento identico ao gateway legado na porta 8082.
+      tags:
+        - Pagamentos
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Token de autenticacao da instancia GISP
+          example: 8ADE4F7ED0344ABB922949ABA5C6098B
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  description: Evento Iugu (apenas invoice.status_changed e processado)
+                  example: invoice.status_changed
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: ID da fatura no Iugu
+                    status:
+                      type: string
+                      description: Status da fatura
+                    payer_name:
+                      type: string
+                      description: Nome do pagador
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                data[id]:
+                  type: string
+                data[status]:
+                  type: string
+                data[payer_name]:
+                  type: string
+      responses:
+        '200':
+          description: Webhook processado (ou ignorado com 200 silencioso)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaSucesso'
+        '400':
+          description: Token nao informado, evento invalido ou dados ausentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaErro'
+        '403':
+          description: Token invalido ou nao autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaErro'
+        '405':
+          description: Metodo nao permitido (apenas POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaErro'
+        '500':
+          description: Erro interno (banco ou RabbitMQ)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaErro'
+
+components:
+  schemas:
+    SolicitacaoDesconectarPPPoE:
+      type: object
+      description: Dados para desconexao PPPoE
+      required:
+        - pppoe_user
+        - pop_ipv4
+        - pop_port
+        - pop_user
+        - pop_pass
+      properties:
+        instancia_id:
+          type: integer
+          description: ID da instancia GISP (apenas para log)
+          example: 1
+        contrato_id:
+          type: integer
+          description: ID do contrato (apenas para log)
+          example: 1113
+        cliente_nome:
+          type: string
+          description: Nome do cliente (apenas para log)
+          example: Fulano de Tal
+        pppoe_user:
+          type: string
+          description: Login PPPoE do cliente
+          example: fulano@isp
+        pop_ipv4:
+          type: string
+          description: IP do RouterOS
+          example: 177.136.249.55
+        pop_port:
+          type: string
+          description: Porta da API RouterOS
+          example: "8728"
+        pop_user:
+          type: string
+          description: Usuario de acesso ao RouterOS
+          example: admin
+        pop_pass:
+          type: string
+          description: Senha de acesso ao RouterOS
+          example: senha
+
+    RespostaSucesso:
+      type: object
+      description: Resposta padrao de sucesso
+      properties:
+        sucesso:
+          type: boolean
+          description: Sempre true em respostas de sucesso
+          example: true
+        mensagem:
+          type: string
+          description: Mensagem descritiva
+          example: Publicado na fila desconectar_contrato
+
+    RespostaErro:
+      type: object
+      description: Resposta padrao de erro
+      properties:
+        sucesso:
+          type: boolean
+          description: Sempre false em respostas de erro
+          example: false
+        erro:
+          type: string
+          description: Descricao do erro
+          example: pppoe_user é obrigatorio

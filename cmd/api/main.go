@@ -9,15 +9,23 @@ import (
 
 	"gestor/internal/api"
 	"gestor/internal/config"
+	"gestor/internal/gateway"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
 )
 
 func main() {
-	logger.Destaque("api", "API Gestor ISP - RouterOS PPPoE")
+	logger.Destaque("api", "API Gestor ISP - RouterOS PPPoE + Gateway Iugu")
 	logger.Info("api", "Inicializando...")
 
 	cfg := config.Carregar()
+
+	logger.Info("api", "Conectando ao banco global GISPADM...")
+	if err := gateway.ConectarBancoGlobal(cfg.Banco); err != nil {
+		logger.Erro("api", "Falha ao conectar no banco global: %v", err)
+		os.Exit(1)
+	}
+	logger.Sucesso("api", "Conectado ao banco GISPADM")
 
 	logger.Info("api", "Conectando ao RabbitMQ...")
 	rabbit := mensageria.ConectarComRetry(cfg.RabbitMQ)
