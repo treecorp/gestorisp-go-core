@@ -215,4 +215,4 @@ components:
         erro:
           type: string
           description: Descricao do erro
-          example: pppoe_user é obrigatorio
+          example: Token invalido
