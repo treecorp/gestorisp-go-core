@@ -3,19 +3,19 @@
 
 **Status:** ✅ Ativo (Fase 2 completa — Refatoracao estrutural v2)
 
-**Ultima atualizacao:** 26/06/2026 (16:00)
+**Ultima atualizacao:** 27/06/2026 (13:37)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
 | Decisoes | 14 |
-| Bugs | 2 |
+| Bugs | 3 |
 | Convencoes | 5 |
 | Gotchas | 9 |
 | Padroes | 2 |
 | Specs | 20 |
-| **Total** | **51** |
+| **Total** | **52** |
 
 ## Indice
 
@@ -42,6 +42,7 @@
 ### Bugs
 - [001 - Nome do banco incorreto: gispadm vs gisp_adm](bugs/001-nome-banco-incorreto.md)
 - [002 - CAST dias_bloqueio retorna 0 para string vazia](bugs/002-cast-dias-bloqueio-string-vazia.md)
+- [003 - base64 de imgOffline/imgOnline corrompidas na refatoracao v2](bugs/003-base64-imagens-cluster-corrompidas-refactor.md)
 
 ### Convencoes
 - [001 - Codigo e comentarios em portugues](conventions/001-codigo-em-portugues.md)
@@ -90,6 +91,7 @@
 - HOTFIX-007: corrigido JOIN `buscarContrato` de `cliente_id` para `cliente_token` (protocolo nao era gerado)
 - HOTFIX-008: corrigido panic `[:32]` no token do protocolo (slice bounds out of range)
 - Testado em producao: 3 baixas reais (27587, 27588, 27589) — protocolos 300002, 300005, 300008 gerados com sucesso
+- HOTFIX-009: corrigido base64 de imgOffline/imgOnline corrompidas na refatoracao v2 (1 caractere diferente em cada string)
 - SDD-017: nova API REST independente para desconexao PPPoE (`POST /api/v2/routeros/desconectarpppoe` na porta 8083)
 - Rota `/api/v2/gateway/pagamentos/iugu/gatilho/{token}` adicionada na API (reaproveita funcoes do gateway)
 - Todas as respostas do gateway legado agora retornam JSON (em vez de HTML)
