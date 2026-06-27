@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"text/template"
 
+	"gestor/internal/helpers"
 	"gestor/internal/infra/logger"
 )
 
@@ -32,7 +33,7 @@ func (s *Servidor) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
 	tpl, err := template.New("openapi").Parse(openapiYAML)
 	if err != nil {
 		logger.Erro(tag, "Erro ao fazer parse do template openapi.yaml: %v", err)
-		responderJSON(w, http.StatusInternalServerError, resposta{Sucesso: false, Erro: "Erro interno"})
+		helpers.ResponderJSON(w, http.StatusInternalServerError, helpers.RespostaJSON{Sucesso: false, Erro: "Erro interno"})
 		return
 	}
 
@@ -41,7 +42,7 @@ func (s *Servidor) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
 		"ServerURL": fmt.Sprintf("%s://%s", scheme, host),
 	}); err != nil {
 		logger.Erro(tag, "Erro ao renderizar template openapi.yaml: %v", err)
-		responderJSON(w, http.StatusInternalServerError, resposta{Sucesso: false, Erro: "Erro interno"})
+		helpers.ResponderJSON(w, http.StatusInternalServerError, helpers.RespostaJSON{Sucesso: false, Erro: "Erro interno"})
 		return
 	}
 

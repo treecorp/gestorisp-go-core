@@ -131,26 +131,6 @@ type ParColunaValor struct {
 // Funcoes auxiliares
 // ---------------------------------------------------------------------------
 
-// ExtrairData extrai apenas a parte da data (YYYY-MM-DD) de uma string
-// datetime no formato "YYYY-MM-DD HH:MM:SS". Se a string for menor que
-// 10 caracteres, retorna a string original.
-func ExtrairData(dt string) string {
-	if len(dt) >= 10 {
-		return dt[:10]
-	}
-	return dt
-}
-
-// ExtrairHora extrai apenas a parte da hora (HH:MM:SS) de uma string
-// datetime no formato "YYYY-MM-DD HH:MM:SS". Se a string for menor que
-// 19 caracteres, retorna a string original.
-func ExtrairHora(dt string) string {
-	if len(dt) >= 19 {
-		return dt[11:19]
-	}
-	return dt
-}
-
 // ---------------------------------------------------------------------------
 // Contagem de conexoes
 // ---------------------------------------------------------------------------
@@ -835,29 +815,6 @@ func InserirRadacct(tx *sql.Tx, cols []ParColunaValor) error {
 	query := fmt.Sprintf("INSERT INTO radacct_arquivo (%s) VALUES (%s)",
 		strings.Join(nomes, ", "),
 		strings.Join(placeholders, ", "))
-
-	_, err := tx.Exec(query, valores...)
-	return err
-}
-
-// AtualizarRadacct atualiza um registro existente na tabela radacct_arquivo
-// pelo radacctid.
-func AtualizarRadacct(tx *sql.Tx, cols []ParColunaValor, radacctid int64) error {
-	var sets []string
-	var valores []interface{}
-
-	for _, p := range cols {
-		if p.Coluna == "radacctid" {
-			continue
-		}
-		sets = append(sets, fmt.Sprintf("%s = ?", p.Coluna))
-		valores = append(valores, p.Valor)
-	}
-
-	valores = append(valores, radacctid)
-
-	query := fmt.Sprintf("UPDATE radacct_arquivo SET %s WHERE radacctid = ?",
-		strings.Join(sets, ", "))
 
 	_, err := tx.Exec(query, valores...)
 	return err

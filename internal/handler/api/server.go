@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gestor/internal/config"
+	"gestor/internal/helpers"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
 )
@@ -64,5 +65,5 @@ func (s *Servidor) handleDesconectarPPPoE(w http.ResponseWriter, r *http.Request
 
 // handleNotFound retorna 404 para rotas não encontradas.
 func (s *Servidor) handleNotFound(w http.ResponseWriter, r *http.Request) {
-	responderJSON(w, http.StatusNotFound, resposta{Sucesso: false, Erro: "Rota nao encontrada"})
+	helpers.ResponderJSON(w, http.StatusNotFound, helpers.RespostaJSON{Sucesso: false, Erro: "Rota nao encontrada"})
 }

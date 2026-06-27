@@ -29,15 +29,6 @@ type ResultadoBaixa struct {
 
 const tagBaixa = "pagamento"
 
-// externalRef retorna a referência externa da fatura Iugu, usada para
-// identificar a fatura no sistema GISP.
-func externalRef(fatura *iugu.FaturaIugu) string {
-	if fatura.ExternalRef != "" {
-		return fatura.ExternalRef
-	}
-	return ""
-}
-
 // ExecutarBaixa executa a lógica completa de baixa contábil de uma fatura
 // já confirmada como paga pela API Iugu. Orquestra a atualização da fatura,
 // registro do gatilho, lançamento em caixa, geração de protocolo e

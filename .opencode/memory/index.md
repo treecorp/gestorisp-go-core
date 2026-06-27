@@ -3,13 +3,13 @@
 
 **Status:** ✅ Ativo (Fase 2 completa — Refatoracao estrutural v2)
 
-**Ultima atualizacao:** 26/06/2026 (15:30)
+**Ultima atualizacao:** 26/06/2026 (16:00)
 
 ## Estatisticas
 
 | Categoria | Quantidade |
 |---|---|
-| Decisoes | 13 |
+| Decisoes | 14 |
 | Bugs | 2 |
 | Convencoes | 5 |
 | Gotchas | 9 |
@@ -37,6 +37,7 @@
 ### Decisoes (Fase 4 - Refatoracao Estrutural v2)
 - [013 - Nova estrutura padronizada entity/helpers/lib/repositorio/service/handler](decisions/013-nova-estrutura-padronizada.md)
 - [011 - listar_clientes_vencidos publica na fila desconectar_contrato em vez de chamar RouterOS direto](decisions/011-listar-clientes-vencidos-desconexao-fila.md)
+- [014 - SDD-027: Limpeza de Codigo Morto (pos-refatoracao v2)](decisions/014-sdd-027-limpeza-codigo-morto.md)
 
 ### Bugs
 - [001 - Nome do banco incorreto: gispadm vs gisp_adm](bugs/001-nome-banco-incorreto.md)

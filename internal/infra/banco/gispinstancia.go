@@ -7,8 +7,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"gestor/internal/config"
-	"gestor/internal/entity"
 	"gestor/internal/infra/logger"
 )
 
@@ -35,52 +33,6 @@ func ConectarInstancia(hostname, porta, username, password, database string) (*s
 	return db, nil
 }
 
-func BuscarPopsOperacionais(db *sql.DB) ([]entity.Pop, error) {
-	query := `SELECT id, ipv4, api_port, user, pass, status, status_timeout, status_timeout_data_hora 
-	           FROM sgp_pop WHERE status = 'OPERACIONAL' ORDER BY id ASC`
-
-	linhas, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar POPs: %w", err)
-	}
-	defer linhas.Close()
-
-	var pops []entity.Pop
-	for linhas.Next() {
-		var p entity.Pop
-		if err := linhas.Scan(
-			&p.ID, &p.IPv4, &p.APIPort, &p.User, &p.Pass,
-			&p.Status, &p.StatusTimeout, &p.StatusTimeoutDataHora,
-		); err != nil {
-			return nil, fmt.Errorf("erro ao escanear POP: %w", err)
-		}
-		pops = append(pops, p)
-	}
-	if err := linhas.Err(); err != nil {
-		return nil, fmt.Errorf("erro na iteracao dos POPs: %w", err)
-	}
-
-	return pops, nil
-}
-
-func AtualizarStatusTimeout(db *sql.DB, popID int, timeout int, dataHora *string) error {
-	if dataHora != nil && *dataHora != "" {
-		query := `UPDATE sgp_pop SET status_timeout = ?, status_timeout_data_hora = ? WHERE id = ?`
-		_, err := db.Exec(query, timeout, *dataHora, popID)
-		if err != nil {
-			return fmt.Errorf("erro ao atualizar status_timeout do POP %d: %w", popID, err)
-		}
-	} else {
-		query := `UPDATE sgp_pop SET status_timeout = ?, status_timeout_data_hora = NULL WHERE id = ?`
-		_, err := db.Exec(query, timeout, popID)
-		if err != nil {
-			return fmt.Errorf("erro ao atualizar status_timeout do POP %d: %w", popID, err)
-		}
-	}
-
-	return nil
-}
-
 func FecharConexaoInstancia(db *sql.DB, tag string) {
 	if db != nil {
 		if err := db.Close(); err != nil {
@@ -89,12 +41,4 @@ func FecharConexaoInstancia(db *sql.DB, tag string) {
 	}
 }
 
-func PingInstancia(cfg config.BancoConfig) error {
-	if pool == nil {
-		return fmt.Errorf("pool de conexao nao inicializado")
-	}
-	if err := pool.Ping(); err != nil {
-		return fmt.Errorf("pool gispadm sem conexao: %w", err)
-	}
-	return nil
-}
+

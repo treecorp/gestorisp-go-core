@@ -2,13 +2,13 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"gestor/internal/config"
+	"gestor/internal/helpers"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
 )
@@ -59,7 +59,7 @@ func (s *Servidor) handleGatilho(w http.ResponseWriter, r *http.Request) {
 	token := strings.TrimRight(path, "/")
 
 	if token == "" {
-		responderJSON(w, http.StatusBadRequest, respostaJSON{Sucesso: false, Erro: "Token nao informado"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "Token nao informado"})
 		return
 	}
 
@@ -68,27 +68,11 @@ func (s *Servidor) handleGatilho(w http.ResponseWriter, r *http.Request) {
 	instancia, err := Autenticar(token, s.cfg.Banco, s.cfg)
 	if err != nil {
 		logger.Aviso("gateway", "Token invalido: %s", token)
-		responderJSON(w, http.StatusForbidden, respostaJSON{Sucesso: false, Erro: "Nao permitido"})
+		helpers.ResponderJSON(w, http.StatusForbidden, helpers.RespostaJSON{Sucesso: false, Erro: "Nao permitido"})
 		return
 	}
 
 	HandleWebhook(w, r, instancia, s.rabbit)
 }
 
-// PingHandler é um health check simples.
-func PingHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("200"))
-}
 
-type respostaJSON struct {
-	Sucesso  bool   `json:"sucesso"`
-	Mensagem string `json:"mensagem,omitempty"`
-	Erro     string `json:"erro,omitempty"`
-}
-
-func responderJSON(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
-}

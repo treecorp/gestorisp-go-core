@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gestor/internal/entity"
+	"gestor/internal/helpers"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
 )
@@ -17,7 +18,7 @@ const tag = "gateway"
 // na fila RabbitMQ para processamento assíncrono.
 func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia entity.Instancia, rabbit *mensageria.RabbitMQ) {
 	if r.Method != http.MethodPost {
-		responderJSON(w, http.StatusMethodNotAllowed, respostaJSON{Sucesso: false, Erro: "Metodo nao permitido"})
+		helpers.ResponderJSON(w, http.StatusMethodNotAllowed, helpers.RespostaJSON{Sucesso: false, Erro: "Metodo nao permitido"})
 		return
 	}
 
@@ -55,19 +56,19 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia entity.Inst
 
 	if event == "" {
 		logger.Aviso(tag, "Instancia %d: event nao informado", instancia.ID)
-		responderJSON(w, http.StatusBadRequest, respostaJSON{Sucesso: false, Erro: "event nao informado"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "event nao informado"})
 		return
 	}
 
 	if event != "invoice.status_changed" {
 		logger.Info(tag, "Instancia %d: evento %s ignorado (apenas invoice.status_changed)", instancia.ID, event)
-		responderJSON(w, http.StatusOK, respostaJSON{Sucesso: true, Mensagem: "Evento ignorado"})
+		helpers.ResponderJSON(w, http.StatusOK, helpers.RespostaJSON{Sucesso: true, Mensagem: "Evento ignorado"})
 		return
 	}
 
 	if len(data) == 0 {
 		logger.Aviso(tag, "Instancia %d: data nao informado", instancia.ID)
-		responderJSON(w, http.StatusBadRequest, respostaJSON{Sucesso: false, Erro: "data nao informado"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "data nao informado"})
 		return
 	}
 
@@ -79,7 +80,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia entity.Inst
 
 	if rabbit == nil {
 		logger.Erro(tag, "Instancia %d: RabbitMQ nao disponivel", instancia.ID)
-		responderJSON(w, http.StatusInternalServerError, respostaJSON{Sucesso: false, Erro: "Erro interno"})
+		helpers.ResponderJSON(w, http.StatusInternalServerError, helpers.RespostaJSON{Sucesso: false, Erro: "Erro interno"})
 		return
 	}
 
@@ -92,17 +93,12 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, instancia entity.Inst
 
 	if err := rabbit.PublicarMensagem("processar_pagamento_iugu", msg); err != nil {
 		logger.Erro(tag, "Instancia %d: erro ao publicar na fila: %v", instancia.ID, err)
-		responderJSON(w, http.StatusInternalServerError, respostaJSON{Sucesso: false, Erro: "Erro interno"})
+		helpers.ResponderJSON(w, http.StatusInternalServerError, helpers.RespostaJSON{Sucesso: false, Erro: "Erro interno"})
 		return
 	}
 
 	logger.Sucesso(tag, "Instancia %d: webhook publicado na fila processar_pagamento_iugu (fatura=%s)", instancia.ID, iuguID)
-	responderJSON(w, http.StatusOK, respostaJSON{Sucesso: true, Mensagem: "Webhook processado"})
+	helpers.ResponderJSON(w, http.StatusOK, helpers.RespostaJSON{Sucesso: true, Mensagem: "Webhook processado"})
 }
 
-func truncate(s string, max int) string {
-	if len(s) > max {
-		return s[:max] + "..."
-	}
-	return s
-}
+

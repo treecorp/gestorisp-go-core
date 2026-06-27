@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gestor/internal/entity"
+	"gestor/internal/helpers"
 	"gestor/internal/infra/fuso"
 	"gestor/internal/infra/logger"
 	"gestor/internal/infra/mensageria"
@@ -29,35 +30,35 @@ type SolicitacaoDesconectarPPPoE struct {
 // valida os campos obrigatórios e publica na fila RabbitMQ.
 func HandleDesconectarPPPoE(w http.ResponseWriter, r *http.Request, rabbit *mensageria.RabbitMQ) {
 	if r.Method != http.MethodPost {
-		responderJSON(w, http.StatusMethodNotAllowed, resposta{Sucesso: false, Erro: "Metodo nao permitido"})
+		helpers.ResponderJSON(w, http.StatusMethodNotAllowed, helpers.RespostaJSON{Sucesso: false, Erro: "Metodo nao permitido"})
 		return
 	}
 
 	var req SolicitacaoDesconectarPPPoE
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Aviso(tag, "JSON invalido: %v", err)
-		responderJSON(w, http.StatusBadRequest, resposta{Sucesso: false, Erro: fmt.Sprintf("JSON invalido: %v", err)})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: fmt.Sprintf("JSON invalido: %v", err)})
 		return
 	}
 
 	if req.PPPoEUser == "" {
-		responderJSON(w, http.StatusBadRequest, resposta{Sucesso: false, Erro: "pppoe_user é obrigatorio"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "pppoe_user é obrigatorio"})
 		return
 	}
 	if req.PopIPv4 == "" {
-		responderJSON(w, http.StatusBadRequest, resposta{Sucesso: false, Erro: "pop_ipv4 é obrigatorio"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "pop_ipv4 é obrigatorio"})
 		return
 	}
 	if req.PopPort == "" {
-		responderJSON(w, http.StatusBadRequest, resposta{Sucesso: false, Erro: "pop_port é obrigatorio"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "pop_port é obrigatorio"})
 		return
 	}
 	if req.PopUser == "" {
-		responderJSON(w, http.StatusBadRequest, resposta{Sucesso: false, Erro: "pop_user é obrigatorio"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "pop_user é obrigatorio"})
 		return
 	}
 	if req.PopPass == "" {
-		responderJSON(w, http.StatusBadRequest, resposta{Sucesso: false, Erro: "pop_pass é obrigatorio"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "pop_pass é obrigatorio"})
 		return
 	}
 
@@ -75,12 +76,12 @@ func HandleDesconectarPPPoE(w http.ResponseWriter, r *http.Request, rabbit *mens
 
 	if err := rabbit.PublicarMensagem("desconectar_contrato", msg); err != nil {
 		logger.Erro(tag, "Erro ao publicar na fila desconectar_contrato: %v", err)
-		responderJSON(w, http.StatusInternalServerError, resposta{Sucesso: false, Erro: fmt.Sprintf("Erro ao publicar na fila: %v", err)})
+		helpers.ResponderJSON(w, http.StatusInternalServerError, helpers.RespostaJSON{Sucesso: false, Erro: fmt.Sprintf("Erro ao publicar na fila: %v", err)})
 		return
 	}
 
 	logger.Sucesso(tag, "Instancia %d: desconexao do contrato %d (%s) publicada na fila (pppoe=%s, pop=%s:%s)",
 		req.InstanciaID, req.ContratoID, req.ClienteNome, req.PPPoEUser, req.PopIPv4, req.PopPort)
 
-	responderJSON(w, http.StatusOK, resposta{Sucesso: true, Mensagem: "Publicado na fila desconectar_contrato"})
+	helpers.ResponderJSON(w, http.StatusOK, helpers.RespostaJSON{Sucesso: true, Mensagem: "Publicado na fila desconectar_contrato"})
 }

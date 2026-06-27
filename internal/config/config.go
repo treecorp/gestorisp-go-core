@@ -8,7 +8,6 @@ type Config struct {
 	RabbitMQ            RabbitMQConfig
 	GatewayPort         string
 	APIPort             string
-	CI3EncryptionKey    string
 	DBInstanciaHostDev  string
 	DBInstanciaPortaDev string
 }
@@ -47,7 +46,6 @@ func Carregar() *Config {
 		},
 		GatewayPort:         obterEnv("GATEWAY_PORT", "8082"),
 		APIPort:             obterEnv("API_PORT", "8083"),
-		CI3EncryptionKey:    obterEnv("CI3_ENCRYPTION_KEY", "sjlkjl32oiPOIjkl2"),
 		DBInstanciaHostDev:  obterEnv("DB_INSTANCIA_HOST_DEV", ""),
 		DBInstanciaPortaDev: obterEnv("DB_INSTANCIA_PORT_DEV", ""),
 	}

@@ -132,16 +132,16 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 					logger.Info(tag, "contrato %d: Offline->Online (sessao ativa desde %s)", c.ID, c.RadAcctStartTime.String)
 					if err := repositorio.AtualizarContratoOfflineParaOnline(db, c.ID,
 						c.RadAcctStartTime.String,
-						repositorio.ExtrairData(c.RadAcctStartTime.String),
-						repositorio.ExtrairHora(c.RadAcctStartTime.String)); err != nil {
+						helpers.ExtrairData(c.RadAcctStartTime.String),
+						helpers.ExtrairHora(c.RadAcctStartTime.String)); err != nil {
 						logger.Erro(tag, "erro atualizar status contrato %d: %v", c.ID, err)
 					}
 					online++
 				} else {
 					if err := repositorio.AtualizarContratoAtividade(db, c.ID,
 						c.RadAcctUpdateTime.String,
-						repositorio.ExtrairData(c.RadAcctUpdateTime.String),
-						repositorio.ExtrairHora(c.RadAcctUpdateTime.String)); err != nil {
+						helpers.ExtrairData(c.RadAcctUpdateTime.String),
+						helpers.ExtrairHora(c.RadAcctUpdateTime.String)); err != nil {
 						logger.Erro(tag, "erro atualizar atividade contrato %d: %v", c.ID, err)
 					}
 				}
@@ -149,8 +149,8 @@ func syncConexoesRadiusStatus(tag string, db *sql.DB) error {
 				logger.Info(tag, "contrato %d: Online->Offline (sessao encerrada em %s)", c.ID, c.RadAcctStopTime.String)
 				if err := repositorio.AtualizarContratoOnlineParaOffline(db, c.ID,
 					c.RadAcctStopTime.String,
-					repositorio.ExtrairData(c.RadAcctStopTime.String),
-					repositorio.ExtrairHora(c.RadAcctStopTime.String)); err != nil {
+					helpers.ExtrairData(c.RadAcctStopTime.String),
+					helpers.ExtrairHora(c.RadAcctStopTime.String)); err != nil {
 					logger.Erro(tag, "erro atualizar status contrato %d: %v", c.ID, err)
 				}
 				offline++

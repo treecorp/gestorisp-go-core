@@ -12,30 +12,6 @@ import (
 // Tipos exportados
 // ---------------------------------------------------------------------------
 
-// ClusterContrato representa um contrato no cluster de visualizacao.
-type ClusterContrato struct {
-	Token         string `json:"token"`
-	Img           string `json:"img"`
-	Cliente       string `json:"cliente"`
-	Logradouro    string `json:"logradouro"`
-	OrganizacaoID *int   `json:"organizacao_id,omitempty"`
-}
-
-// CoordenadaGPS representa um marcador de coordenada geografica.
-type CoordenadaGPS struct {
-	Icon              string `json:"icon"`
-	InfoWindowContent string `json:"infowindow_content"`
-	Lat               string `json:"lat"`
-	Lon               string `json:"lon"`
-	Title             string `json:"title"`
-	OrganizacaoID     int    `json:"organizacao_id"`
-}
-
-// LinhaConexao representa uma linha de conexao do contrato.
-type LinhaConexao struct {
-	Conexao string `json:"conexao"`
-}
-
 // LinhaClienteColmeia representa um cliente apto para agrupacao colmeia.
 type LinhaClienteColmeia struct {
 	ID                              int

@@ -208,27 +208,6 @@ func AplicarBloqueio(tx *sql.Tx, contrato *entity.Contrato, fatura entity.Fatura
 	return nil
 }
 
-// CalcularDiasAtraso calcula quantos dias se passaram desde a data de
-// vencimento informada. A data deve estar no formato "YYYY-MM-DD".
-// Retorna 0 se a data for inválida ou se o vencimento for futuro.
-func CalcularDiasAtraso(vencimento string) int {
-	if vencimento == "" {
-		return 0
-	}
-
-	venc, err := time.Parse("2006-01-02", vencimento[:10])
-	if err != nil {
-		return 0
-	}
-
-	hoje := time.Now().Truncate(24 * time.Hour)
-	dias := int(hoje.Sub(venc).Hours() / 24)
-	if dias < 0 {
-		return 0
-	}
-	return dias
-}
-
 // ---------------------------------------------------------------------------
 // Funções auxiliares internas
 // ---------------------------------------------------------------------------

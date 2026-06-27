@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gestor/internal/handler/gateway"
+	"gestor/internal/helpers"
 	"gestor/internal/infra/logger"
 )
 
@@ -18,7 +19,7 @@ func (s *Servidor) handlePagamentoIugu(w http.ResponseWriter, r *http.Request) {
 	logger.Info(tag, "Request recebido para %s", r.URL.Path)
 
 	if r.Method != http.MethodPost {
-		responderJSON(w, http.StatusMethodNotAllowed, resposta{Sucesso: false, Erro: "Metodo nao permitido"})
+		helpers.ResponderJSON(w, http.StatusMethodNotAllowed, helpers.RespostaJSON{Sucesso: false, Erro: "Metodo nao permitido"})
 		return
 	}
 
@@ -26,7 +27,7 @@ func (s *Servidor) handlePagamentoIugu(w http.ResponseWriter, r *http.Request) {
 	token := strings.TrimRight(path, "/")
 
 	if token == "" {
-		responderJSON(w, http.StatusBadRequest, resposta{Sucesso: false, Erro: "Token nao informado"})
+		helpers.ResponderJSON(w, http.StatusBadRequest, helpers.RespostaJSON{Sucesso: false, Erro: "Token nao informado"})
 		return
 	}
 
@@ -35,7 +36,7 @@ func (s *Servidor) handlePagamentoIugu(w http.ResponseWriter, r *http.Request) {
 	instancia, err := gateway.Autenticar(token, s.cfg.Banco, s.cfg)
 	if err != nil {
 		logger.Aviso(tag, "Token invalido: %s (%v)", token, err)
-		responderJSON(w, http.StatusForbidden, resposta{Sucesso: false, Erro: "Nao permitido"})
+		helpers.ResponderJSON(w, http.StatusForbidden, helpers.RespostaJSON{Sucesso: false, Erro: "Nao permitido"})
 		return
 	}
 
